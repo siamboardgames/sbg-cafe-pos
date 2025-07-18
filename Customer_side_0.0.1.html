@@ -3,283 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>บัตรสมาชิก</title>
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+    <title>ระบบจัดการร้านค้า</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        :root { --primary-color: #00B900; --light-gray: #f0f2f5; --dark-gray: #666; --text-color: #333; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; background-color: var(--light-gray); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; }
-        .page-content { flex: 1; overflow-y: auto; padding: 1.5rem; }
-        .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
-        nav { display: flex; background-color: white; border-top: 1px solid #ddd; position: sticky; bottom: 0; }
-        nav a { flex: 1; text-align: center; padding: 12px 0; color: var(--dark-gray); text-decoration: none; font-size: 0.8rem; }
-        nav a.active { color: var(--primary-color); font-weight: bold; }
-        nav a svg { width: 24px; height: 24px; margin-bottom: 2px; }
-        .home-container { text-align: center; padding: 2rem 0; }
-        .profile-img { border-radius: 50%; width: 100px; height: 100px; object-fit: cover; border: 3px solid var(--primary-color); }
-        h1 { font-size: 1.5rem; margin: 0.5rem 0 0; }
-        #qrcode-canvas { margin: 2rem auto 0; display: block; }
-        .promo-card { background: white; border-radius: 12px; margin-bottom: 1rem; padding: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        .promo-card h3 { margin-top: 0; }
-        .promo-card img { width: 100%; border-radius: 8px; margin-bottom: 0.5rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; }
+        .container { max-width: 600px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; }
+        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
         .form-group { margin-bottom: 1rem; }
-        .form-group label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        .form-group input, .form-group select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
-        .submit-btn, .secondary-btn { width: 100%; padding: 14px; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; border: none; margin-top: 0.5rem; }
-        .submit-btn { background-color: var(--primary-color); color: white; }
-        .secondary-btn { background-color: #e9ecef; color: var(--text-color); }
-        #status-message { text-align: center; padding: 10px; border-radius: 8px; margin-top: 1rem; display: none; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #a0cfff; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; }
         .status-success { background-color: #d4edda; color: #155724; }
         .status-error { background-color: #f8d7da; color: #721c24; }
-        .profile-display-view p { margin: 0.5rem 0; font-size: 1rem; }
-        .profile-display-view strong { color: var(--dark-gray); min-width: 100px; display: inline-block; }
+        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
+        .info-box p { margin: 0.5rem 0; }
+        .info-box strong { color: #000; }
     </style>
 </head>
 <body>
 
-    <main class="page-content">
-        <div id="home" class="tab-pane active">
-            <div class="home-container">
-                <img id="pictureUrl" src="https://placehold.co/100x100/EFEFEF/AAAAAA?text=Profile" alt="Profile Picture" class="profile-img">
-                <h1 id="displayName"></h1>
-                <p id="userId"></p>
-                <canvas id="qrcode-canvas"></canvas>
+    <div class="container">
+        <h1>ระบบจัดการร้านค้า</h1>
+        
+        <!-- [ใหม่] Branch Selection Section -->
+        <div id="branch-section">
+             <h2>กรุณาเลือกสาขา</h2>
+             <div class="form-group">
+                <label for="branch-select">สาขา</label>
+                <select id="branch-select">
+                    <option value="">-- เลือกสาขา --</option>
+                    <option value="Bangna">Bangna</option>
+                    <option value="Ngamwongwan">Ngamwongwan</option>
+                    <option value="WestGate">WestGate</option>
+                    <option value="EastVille">EastVille</option>
+                    <!-- เพิ่มสาขาอื่นๆ ที่นี่ -->
+                </select>
             </div>
         </div>
 
-        <div id="promotions" class="tab-pane">
-            <h2>โปรโมชั่นพิเศษ</h2>
-            <div id="promo-list"></div>
-        </div>
-
-        <!--#Showing Customer Details--!>
-        <div id="profile" class="tab-pane">
-            <h2>ข้อมูลลูกค้า</h2>
-            
-            <div id="profile-display-view" style="display: none;">
-                <div class="profile-display-view">
-                    <p><strong>ชื่อจริง(FirstName):</strong> <span id="display-firstName"></span></p>
-                    <p><strong>นามสกุล(LastName):</strong> <span id="display-lastName"></span></p>
-                    <p><strong>ชื่อเล่น(NickName):</strong> <span id="display-nickname"></span></p>
-                    <p><strong>วันเกิด(Date):</strong> <span id="display-birthdate"></span></p>
-                    <p><strong>เพศ(Gender):</strong> <span id="display-gender"></span></p>
-                    <p><strong>LINE ID*:</strong> <span id="display-lineId"></span></p>
-                    <p><strong>เบอร์โทรศัพท์*:</strong> <span id="display-phoneNumber"></span></p>
+        <!-- Entry Section for Scan or Manual Input -->
+        <div id="entry-section" class="section">
+            <h2>ค้นหาลูกค้า</h2>
+            <div id="qr-reader"></div>
+            <button id="start-scan-btn">สแกน QR Code</button>
+            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
+            <form id="manual-entry-form">
+                <div class="form-group">
+                    <label for="manual-userid">กรอก User ID ของลูกค้า</label>
+                    <input type="text" id="manual-userid" placeholder="U12345...">
                 </div>
-                <button id="edit-profile-btn" class="submit-btn" style="margin-top: 2rem;">แก้ไขข้อมูล</button>
-            </div>
-
-            <div id="profile-edit-view" style="display: none;">
-                <form id="edit-profile-form">
-                    <div class="form-group"><label for="firstName">ชื่อจริง</label><input type="text" id="firstName"></div>
-                    <div class="form-group"><label for="lastName">นามสกุล</label><input type="text" id="lastName"></div>
-                    <div class="form-group"><label for="nickname">ชื่อเล่น</label><input type="text" id="nickname"></div>
-                    <div class="form-group"><label for="birthdate">วันเกิด</label><input type="date" id="birthdate"></div>
-                    <div class="form-group"><label for="gender">เพศ</label><select id="gender"><option value="">เลือกเพศ</option><option value="Male">ชาย</option><option value="Female">หญิง</option><option value="Other">อื่นๆ</option></select></div>
-                    <div class="form-group"><label for="lineId">LINE ID</label><input type="text" id="lineId" required></div>
-                    <div class="form-group"><label for="phoneNumber">เบอร์โทรศัพท์</label><input type="tel" id="phoneNumber" required></div>
-                    <button type="submit" class="submit-btn">บันทึกข้อมูล</button>
-                    <button type="button" id="cancel-edit-btn" class="secondary-btn">ยกเลิก</button>
-                </form>
-            </div>
-            <div id="status-message"></div>
+                <button type="submit">ค้นหาลูกค้า</button>
+            </form>
         </div>
-    </main>
 
-    <nav>
-        <a href="#home" class="nav-link active">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h7.5" /></svg>
-            <div>หน้าหลัก</div>
-        </a>
-        <a href="#promotions" class="nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z" /><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z" /></svg>
-            <div>โปรโมชั่น</div>
-        </a>
-        <a href="#profile" class="nav-link">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-            <div>ข้อมูลลูกค้า</div>
-        </a>
-    </nav>
+        <div id="status-message"></div>
+        <div id="customer-details-section" class="section"></div>
+        <div id="checkin-section" class="section"></div>
+        <div id="checkout-section" class="section"></div>
+        
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าแรก</button>
+    </div>
 
     <script>
         // --- CONFIGURATION ---
-        const LIFF_ID = "YOUR_LIFF_ID"; // ⚠️
         const GOOGLE_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL"; // ⚠️
-        let USER_ID = null;
 
-        // --- UI & NAVIGATION ---
-        const navLinks = document.querySelectorAll('.nav-link');
-        const tabPanes = document.querySelectorAll('.tab-pane');
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetId = link.getAttribute('href').substring(1);
-                navLinks.forEach(l => l.classList.remove('active'));
-                tabPanes.forEach(p => p.classList.remove('active'));
-                link.classList.add('active');
-                document.getElementById(targetId).classList.add('active');
-            });
+        // --- STATE ---
+        let selectedBranch = null;
+        let currentUserId = null;
+        let html5QrCode = null;
+
+        // --- DOM ELEMENTS ---
+        const branchSelect = document.getElementById('branch-select');
+        const entrySection = document.getElementById('entry-section');
+        // ... and other elements
+
+        // --- FUNCTIONS ---
+        function resetUI() {
+            // ... ซ่อนทุก Section ยกเว้นหน้าเลือกสาขา
+            document.getElementById('branch-section').style.display = 'block';
+            entrySection.style.display = 'none';
+            document.getElementById('customer-details-section').style.display = 'none';
+            document.getElementById('checkin-section').style.display = 'none';
+            document.getElementById('checkout-section').style.display = 'none';
+            document.getElementById('status-message').style.display = 'none';
+            document.getElementById('reset-btn').style.display = 'none';
+            
+            branchSelect.value = ""; // รีเซ็ต dropdown
+            currentUserId = null;
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
+            }
+        }
+
+        async function processUserId(userId) {
+            // ... (ตรรกะเดิม)
+        }
+        
+        async function handleCheckInSubmit(e) {
+            e.preventDefault();
+            // ...
+            const payload = {
+                action: 'checkIn',
+                userId: currentUserId,
+                branch: selectedBranch, // [ใหม่] ส่งข้อมูลสาขาไปด้วย
+                couponType: document.getElementById('coupon-type').value,
+                price: document.getElementById('price').value,
+                promotion: document.getElementById('promotion').value
+            };
+            // ... (ส่วนที่เหลือเหมือนเดิม)
+        }
+
+        // --- EVENT LISTENERS ---
+        branchSelect.addEventListener('change', () => {
+            selectedBranch = branchSelect.value;
+            if (selectedBranch) {
+                entrySection.style.display = 'block'; // แสดงส่วนค้นหาเมื่อเลือกสาขาแล้ว
+                document.getElementById('reset-btn').style.display = 'block';
+            } else {
+                entrySection.style.display = 'none';
+            }
         });
-
-        function showStatus(message, isError = false) { 
-            const statusEl = document.getElementById('status-message');
-            statusEl.textContent = message;
-            statusEl.className = isError ? 'status-error' : 'status-success';
-            statusEl.style.display = 'block';
-            setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
-         }
-
-        // --- API CALL ---
-        async function apiCall(payload) { 
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: 'POST',
-                body: JSON.stringify(payload),
-                headers: { 'Content-Type': 'application/json' }
-            });
-            if (!response.ok) throw new Error("Network response was not ok.");
-            const result = await response.json();
-            if (result.result === 'error') throw new Error(result.error);
-            return result;
-         }
-
-        // --- DATA FETCHING & HANDLING ---
-        async function fetchPromotions() { 
-            try {
-                const result = await apiCall({ action: 'getPromotions' });
-                const promoList = document.getElementById('promo-list');
-                promoList.innerHTML = ''; // Clear existing
-                if (result.data.length === 0) {
-                    promoList.innerHTML = '<p>ยังไม่มีโปรโมชั่นในขณะนี้</p>';
-                    return;
-                }
-                result.data.forEach(promo => {
-                    const card = document.createElement('div');
-                    card.className = 'promo-card';
-                    card.innerHTML = `
-                        ${promo.ImageURL ? `<img src="${promo.ImageURL}" alt="${promo.Title}">` : ''}
-                        <h3>${promo.Title}</h3>
-                        <p>${promo.Description}</p>
-                        <small>หมดเขต: ${new Date(promo.ExpiryDate).toLocaleDateString('th-TH')}</small>
-                    `;
-                    promoList.appendChild(card);
-                });
-            } catch (error) {
-                console.error("Failed to fetch promotions:", error);
-                document.getElementById('promo-list').innerHTML = '<p>ไม่สามารถโหลดโปรโมชั่นได้</p>';
-            }
-         }
-
-        /**
-         * [ใหม่] ดึงข้อมูลโปรไฟล์ลูกค้าและจัดการการแสดงผล
-         */
-        async function loadUserProfile() {
-            try {
-                const result = await apiCall({ action: 'getUserProfile', userId: USER_ID });
-                if (result.result === 'success') {
-                    populateProfileData(result.data);
-                    showDisplayView();
-                } else {
-                    // result is 'not_found'
-                    showEditView();
-                }
-            } catch (error) {
-                console.error("Failed to load user profile:", error);
-                showEditView(); // ถ้าเกิดข้อผิดพลาด ก็ให้ไปหน้าแก้ไขไปเลย
-            }
-        }
-
-        /**
-         * [ใหม่] แสดงข้อมูลในฟอร์มและในหน้าแสดงผล
-         */
-        function populateProfileData(data) {
-            // Populate display view
-            for (const key in data) {
-                const el = document.getElementById(`display-${key}`);
-                if (el) el.textContent = data[key] || '-';
-            }
-            // Populate edit form
-            for (const key in data) {
-                const el = document.getElementById(key);
-                if (el) el.value = data[key];
-            }
-        }
-
-        /**
-         * [ใหม่] ฟังก์ชันสลับการแสดงผล
-         */
-        function showDisplayView() {
-            document.getElementById('profile-display-view').style.display = 'block';
-            document.getElementById('profile-edit-view').style.display = 'none';
-        }
-        function showEditView() {
-            document.getElementById('profile-display-view').style.display = 'none';
-            document.getElementById('profile-edit-view').style.display = 'block';
-        }
-
+        
+        document.getElementById('reset-btn').addEventListener('click', resetUI);
+        // ... (event listeners อื่นๆ เหมือนเดิม)
+        
         // --- INITIALIZATION ---
-        async function main() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                if (!liff.isLoggedIn()) { liff.login(); return; }
-                
-                const profile = await liff.getProfile();
-                USER_ID = profile.userId;
-
-                // Setup Home Tab
-                document.getElementById('pictureUrl').src = profile.pictureUrl;
-                document.getElementById('displayName').innerText = profile.displayName;
-                document.getElementById('userId').innerText = `UserID: ${USER_ID}`;
-                QRCode.toCanvas(document.getElementById('qrcode-canvas'), USER_ID, { width: 200 });
-
-                // Fetch data for other tabs
-                await fetchPromotions();
-                await loadUserProfile(); // [ใหม่] โหลดข้อมูลโปรไฟล์
-
-                // Setup event listeners for profile page
-                document.getElementById('edit-profile-btn').addEventListener('click', showEditView);
-                document.getElementById('cancel-edit-btn').addEventListener('click', showDisplayView);
-                
-                document.getElementById('edit-profile-form').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-
-                    // [แก้ไข] เพิ่มการตรวจสอบข้อมูล
-                    const lineIdValue = document.getElementById('lineId').value.trim();
-                    const phoneNumberValue = document.getElementById('phoneNumber').value.trim();
-
-                    if (!lineIdValue || !phoneNumberValue) {
-                        showStatus('กรุณากรอก LINE ID และเบอร์โทรศัพท์ให้ครบถ้วน', true);
-                        return; // หยุดการทำงานถ้าข้อมูลไม่ครบ
-                    }
-
-                    const formData = {
-                        action: 'updateProfile', userId: USER_ID,
-                        firstName: document.getElementById('firstName').value,
-                        lastName: document.getElementById('lastName').value,
-                        nickname: document.getElementById('nickname').value,
-                        birthdate: document.getElementById('birthdate').value,
-                        gender: document.getElementById('gender').value,
-                        lineId: lineIdValue,
-                        phoneNumber: phoneNumberValue,
-                    };
-                    try {
-                        const result = await apiCall(formData);
-                        showStatus('บันทึกข้อมูลเรียบร้อยแล้ว!', false);
-                        // [ใหม่] อัปเดตข้อมูลที่แสดงทันทีหลังบันทึก
-                        populateProfileData(formData);
-                        showDisplayView();
-                    } catch (error) {
-                        showStatus(`เกิดข้อผิดพลาด: ${error.message}`, true);
-                    }
-                });
-
-            } catch (error) {
-                console.error(error);
-                alert("เกิดข้อผิดพลาดในการโหลดแอป: " + error.message);
-            }
-        }
-
-        window.onload = main;
+        resetUI(); // เริ่มต้นแอปด้วยการแสดงหน้าเลือกสาขาก่อน
     </script>
 </body>
 </html>
