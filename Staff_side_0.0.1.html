@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการร้านค้า</title>
+    <!-- QR Code Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; }
+        .container { max-width: 600px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; }
+        #qr-reader { width: 100%; border: 1px solid #ccc; border-radius: 8px; margin-bottom: 1rem; }
+        .section { display: none; margin-top: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; }
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
+        .info-box p { margin: 0.5rem 0; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>ระบบจัดการร้านค้า</h1>
+        
+        <!-- Scanner Section -->
+        <div id="scanner-section">
+            <div id="qr-reader"></div>
+            <button id="start-scan-btn">เริ่มสแกน QR Code</button>
+        </div>
+
+        <!-- Status Message -->
+        <div id="status-message"></div>
+
+        <!-- Check-in Section -->
+        <div id="checkin-section" class="section">
+            <h2>บันทึกการเช็คอิน</h2>
+            <p>ลูกค้า: <strong id="checkin-userid"></strong></p>
+            <form id="checkin-form">
+                <div class="form-group">
+                    <label for="coupon-type">ประเภทคูปอง</label>
+                    <input type="text" id="coupon-type" placeholder="เช่น ส่วนลด 10%">
+                </div>
+                <div class="form-group">
+                    <label for="price">ราคา</label>
+                    <input type="number" id="price" placeholder="เช่น 500">
+                </div>
+                <div class="form-group">
+                    <label for="promotion">โปรโมชั่นพิเศษ</label>
+                    <input type="text" id="promotion" placeholder="เช่น ฟรีเครื่องดื่ม">
+                </div>
+                <button type="submit">ยืนยันเช็คอิน</button>
+            </form>
+        </div>
+
+        <!-- Check-out Section -->
+        <div id="checkout-section" class="section">
+            <h2>บันทึกการเช็คเอาท์</h2>
+            <div class="info-box">
+                <p>ลูกค้า: <strong id="checkout-userid"></strong></p>
+                <p>เวลาเช็คอิน: <strong id="checkout-time"></strong></p>
+                <p>รายละเอียด: <strong id="checkout-details"></strong></p>
+            </div>
+            <form id="checkout-form" style="margin-top: 1rem;">
+                <div class="form-group">
+                    <label for="total-cost">สรุปค่าใช้จ่ายทั้งหมด (บาท)</label>
+                    <input type="number" id="total-cost" required>
+                </div>
+                <button type="submit">ยืนยันเช็คเอาท์</button>
+            </form>
+        </div>
+        
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">สแกนลูกค้าใหม่</button>
+
+    </div>
+
+    <script>
+        // --- CONFIGURATION ---
+        const GOOGLE_SCRIPT_URL = "YOUR_GOOGLE_APPS_SCRIPT_URL"; // ⚠️ วาง URL ของ Web App ที่นี่
+
+        // --- STATE ---
+        let currentUserId = null;
+        let html5QrCode = null;
+
+        // --- DOM ELEMENTS ---
+        const startScanBtn = document.getElementById('start-scan-btn');
+        const scannerSection = document.getElementById('scanner-section');
+        const checkinSection = document.getElementById('checkin-section');
+        const checkoutSection = document.getElementById('checkout-section');
+        const statusMessage = document.getElementById('status-message');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // --- FUNCTIONS ---
+
+        function showStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = isError ? 'status-error' : 'status-success';
+            statusMessage.style.display = 'block';
+        }
+
+        function hideAllSections() {
+            checkinSection.style.display = 'none';
+            checkoutSection.style.display = 'none';
+            statusMessage.style.display = 'none';
+            resetBtn.style.display = 'block';
+        }
+
+        function resetUI() {
+            hideAllSections();
+            scannerSection.style.display = 'block';
+            startScanBtn.style.display = 'block';
+            resetBtn.style.display = 'none';
+            currentUserId = null;
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
+            }
+        }
+
+        async function onScanSuccess(decodedText, decodedResult) {
+            console.log(`Code matched = ${decodedText}`, decodedResult);
+            showStatus('สแกนสำเร็จ! กำลังตรวจสอบสถานะลูกค้า...');
+            currentUserId = decodedText;
+            
+            // Stop scanning
+            if (html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
+            }
+            scannerSection.style.display = 'none';
+
+            // Call backend to get user status
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getUserStatus', userId: currentUserId }),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+
+                if (result.result === 'error') throw new Error(result.error);
+
+                if (result.status === 'Checked-in') {
+                    // Show Check-out UI
+                    hideAllSections();
+                    checkoutSection.style.display = 'block';
+                    document.getElementById('checkout-userid').textContent = currentUserId;
+                    document.getElementById('checkout-time').textContent = new Date(result.data.checkInTime).toLocaleString('th-TH');
+                    document.getElementById('checkout-details').textContent = `คูปอง: ${result.data.couponType || '-'}, ราคา: ${result.data.price || '-'}, โปร: ${result.data.promotion || '-'}`;
+                } else {
+                    // Show Check-in UI
+                    hideAllSections();
+                    checkinSection.style.display = 'block';
+                    document.getElementById('checkin-userid').textContent = currentUserId;
+                }
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, true);
+                resetBtn.style.display = 'block';
+            }
+        }
+
+        function onScanFailure(error) {
+            // console.warn(`Code scan error = ${error}`);
+        }
+
+        // --- EVENT LISTENERS ---
+
+        startScanBtn.addEventListener('click', () => {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            startScanBtn.style.display = 'none';
+            // [แก้ไข] แสดงปุ่มรีเซ็ต/ยกเลิกทันทีเมื่อเริ่มสแกน
+            resetBtn.style.display = 'block';
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                onScanFailure
+            ).catch(err => {
+                showStatus(`ไม่สามารถเริ่มการสแกนได้: ${err}`, true);
+                startScanBtn.style.display = 'block';
+                resetBtn.style.display = 'none';
+            });
+        });
+        
+        resetBtn.addEventListener('click', resetUI);
+
+        document.getElementById('checkin-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showStatus('กำลังบันทึกการเช็คอิน...');
+            const payload = {
+                action: 'checkIn',
+                userId: currentUserId,
+                couponType: document.getElementById('coupon-type').value,
+                price: document.getElementById('price').value,
+                promotion: document.getElementById('promotion').value
+            };
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                if (result.result === 'error') throw new Error(result.error);
+                showStatus('บันทึกการเช็คอินสำเร็จ!');
+                checkinSection.style.display = 'none';
+            } catch (error) {
+                showStatus(`ผิดพลาด: ${error.message}`, true);
+            }
+        });
+
+        document.getElementById('checkout-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            showStatus('กำลังบันทึกการเช็คเอาท์...');
+            const payload = {
+                action: 'checkOut',
+                userId: currentUserId,
+                totalCost: document.getElementById('total-cost').value
+            };
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const result = await response.json();
+                if (result.result === 'error') throw new Error(result.error);
+                showStatus('บันทึกการเช็คเอาท์สำเร็จ!');
+                checkoutSection.style.display = 'none';
+            } catch (error) {
+                showStatus(`ผิดพลาด: ${error.message}`, true);
+            }
+        });
+        
+        // --- INITIALIZATION ---
+        resetUI();
+
+    </script>
+</body>
+</html>
