@@ -289,11 +289,12 @@
             btn.textContent = 'กำลังตรวจสอบ...';
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'staffLogin', pin: pin })
-                });
+                // --- MODIFIED: Switched from POST to GET for the login request to avoid CORS issues ---
+                const loginUrl = new URL(GOOGLE_SCRIPT_URL);
+                loginUrl.searchParams.append('action', 'staffLogin');
+                loginUrl.searchParams.append('pin', pin);
+
+                const response = await fetch(loginUrl); // This is now a GET request
                 const result = await response.json();
 
                 if (result.success) {
@@ -326,7 +327,9 @@
             const config = { fps: 10, qrbox: { width: 250, height: 250 } };
             
             const onScanSuccess = (decodedText, decodedResult) => {
-                html5QrCode.stop();
+                if (html5QrCode.isScanning) {
+                    html5QrCode.stop();
+                }
                 processUserId(decodedText);
             };
             
