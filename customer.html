@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Game Cafe - Member QR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <!-- QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
+    <style>
+        /* Custom font and QR code canvas styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #qr-code-container canvas {
+            width: 100% !important;
+            height: auto !important;
+            border-radius: 0.75rem; /* 12px */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+
+    <!-- Loading State -->
+    <div id="loading-state" class="text-center text-gray-600 dark:text-gray-300">
+        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p>Loading your member info...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="hidden w-full max-w-sm mx-auto text-center bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Error</h2>
+        <p id="error-message" class="text-gray-700 dark:text-gray-300">Could not initialize the app.</p>
+    </div>
+
+    <!-- Main Content (Hidden by default) -->
+    <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8">
+        <div class="text-center mb-6">
+            <p class="text-sm font-medium text-blue-600 dark:text-blue-400">Welcome to Our Cafe!</p>
+            <h1 class="text-2xl font-bold text-gray-800 dark:text-white mt-1">Your Member Card</h1>
+        </div>
+        
+        <!-- User Profile Section -->
+        <div class="flex items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-xl mb-6">
+            <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white dark:border-gray-600 shadow-md">
+            <div class="ml-4">
+                <p class="text-sm text-gray-600 dark:text-gray-400">Member</p>
+                <p id="user-name" class="font-bold text-lg text-gray-900 dark:text-white">Loading...</p>
+            </div>
+        </div>
+
+        <!-- QR Code Section -->
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
+            <h2 class="text-center font-semibold text-gray-700 dark:text-gray-300 mb-4">Show this QR code to the cashier</h2>
+            <div id="qr-code-container" class="w-full aspect-square p-4 bg-white rounded-lg">
+                <!-- QR Code will be generated here by the script -->
+            </div>
+        </div>
+
+        <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-6">
+            This QR code is your unique identifier for orders and membership.
+        </p>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // --- CONFIGURATION ---
+            // ⚠️ IMPORTANT: Replace 'YOUR_LIFF_ID_HERE' with your actual LIFF ID from the LINE Developers Console.
+            const liffId = 'YOUR_LIFF_ID_HERE';
+
+            // --- Main App Logic ---
+            async function main() {
+                // First, validate the LIFF ID to prevent the "channel not found" error.
+                if (liffId === 'YOUR_LIFF_ID_HERE' || !liffId) {
+                    showErrorState('<b>Configuration Error:</b> Please replace "YOUR_LIFF_ID_HERE" in the code with your actual LIFF ID from the LINE Developers Console.');
+                    console.error('LIFF ID is not set. Please update the liffId variable in the script.');
+                    return; // Stop execution
+                }
+
+                try {
+                    // Initialize LIFF
+                    await liff.init({ liffId: liffId });
+
+                    // Check if user is logged in. If not, LIFF will redirect them to the login page.
+                    if (!liff.isLoggedIn()) {
+                        liff.login();
+                        return; // Stop execution until the user is logged in and the page reloads.
+                    }
+
+                    // Get user profile
+                    const profile = await liff.getProfile();
+                    
+                    // Generate QR Code with the User ID
+                    generateQrCode(profile.userId);
+
+                    // Update UI with user info
+                    updateUI(profile);
+
+                } catch (error) {
+                    console.error('LIFF Initialization Error:', error);
+                    showErrorState(`<b>LIFF Error:</b> ${error.message}.<br><br>Please ensure your LIFF ID is correct and the app is opened from within LINE.`);
+                }
+            }
+
+            // --- UI Update Functions ---
+            function updateUI(profile) {
+                // Hide loading state, show main content
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('main-content').classList.remove('hidden');
+
+                // Set user profile picture
+                const userPicture = document.getElementById('user-picture');
+                if (profile.pictureUrl) {
+                    userPicture.src = profile.pictureUrl;
+                }
+                
+                // Set user display name
+                document.getElementById('user-name').textContent = profile.displayName;
+            }
+
+            function generateQrCode(userId) {
+                try {
+                    // Create a new QR code instance
+                    const qr = qrcode(0, 'M'); // typeNumber 0 = auto, errorCorrectionLevel 'M'
+                    qr.addData(userId);
+                    qr.make();
+                    
+                    // Render the QR code as an HTML element (canvas)
+                    const qrCodeContainer = document.getElementById('qr-code-container');
+                    qrCodeContainer.innerHTML = qr.createCanvasTag(10, 4); // cellSize=10, margin=4
+                } catch (error) {
+                    console.error('QR Code Generation Error:', error);
+                    showErrorState('Could not generate the QR code.');
+                }
+            }
+
+            function showErrorState(message) {
+                document.getElementById('loading-state').classList.add('hidden');
+                document.getElementById('main-content').classList.add('hidden');
+                
+                const errorState = document.getElementById('error-state');
+                const errorMessage = document.getElementById('error-message');
+                
+                errorMessage.innerHTML = message; // Use innerHTML to allow for bold tags
+                errorState.classList.remove('hidden');
+            }
+
+            // --- Run the app ---
+            main();
+        });
+    </script>
+</body>
+</html>
