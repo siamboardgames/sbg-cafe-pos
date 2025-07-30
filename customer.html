@@ -3,280 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Board Game Cafe - Member</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <title>ระบบจัดการร้านค้า (POS)</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-        body { font-family: 'Sarabun', sans-serif; }
-        #qr-code-container img { width: 100% !important; height: auto !important; border-radius: 0.75rem; margin: auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
+        .container { width: 100%; max-width: 600px; margin: 1rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #1a202c; }
+        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input[type="text"], input[type="tel"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:hover { background-color: #0056b3; }
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        .tab-button { flex: 1; padding: 0.75rem; text-align: center; background-color: #e9ecef; color: #495057; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; }
-        .tab-button.active { background-color: #fff; color: #007bff; border-bottom-color: #007bff; }
+        button.secondary { background-color: #6c757d; }
+        button.secondary:hover { background-color: #5a6268; }
+        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
+        #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<body>
 
-    <div id="loading-state" class="text-center text-gray-600">
-        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <p>กำลังโหลดข้อมูลสมาชิก...</p>
-    </div>
-
-    <div id="error-state" class="hidden w-full max-w-sm mx-auto text-center bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h2>
-        <p id="error-message" class="text-gray-700">ไม่สามารถเริ่มต้นแอปได้</p>
-    </div>
-
-    <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl">
-        <div class="p-6">
-            <div class="flex items-center bg-gray-100 p-4 rounded-xl">
-                <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white shadow-md">
-                <div class="ml-4">
-                    <p id="user-name" class="font-bold text-lg text-gray-900">กำลังโหลด...</p>
-                    <p id="membership-status" class="text-sm font-medium text-gray-600">กำลังตรวจสอบสถานะ...</p>
-                </div>
-            </div>
-        </div>
+    <div class="container">
+        <h1>ระบบจัดการร้านค้า</h1>
         
-        <div id="content-wrapper">
-            <div id="member-app-section" class="hidden">
-                <div class="flex border-t border-b">
-                    <div id="tab-qr" class="tab-button active">QR Code</div>
-                    <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
-                </div>
-                <div class="p-6">
-                    <div id="qr-code-view">
-                        <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
-                        <div id="qr-code-container" class="w-full max-w-xs mx-auto aspect-square p-4 bg-white rounded-lg flex items-center justify-center border"></div>
-                    </div>
-                    <div id="profile-info-view" class="hidden">
-                        <h2 class="text-center font-semibold text-gray-700 mb-4">ข้อมูลสมาชิก</h2>
-                        <div id="profile-display" class="space-y-3"></div>
-                        <div id="profile-edit-form" class="hidden space-y-3"></div>
-                    </div>
-                </div>
-            </div>
+        <div id="login-section">
+            <h2>พนักงานเข้าสู่ระบบ</h2>
+            <form id="login-form">
+                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" pattern="[0-9]*" placeholder="****" required></div>
+                <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
+            </form>
+        </div>
 
-            <div id="registration-section" class="hidden p-6">
-                <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
-                <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
-                <form id="registration-form">
-                    <div class="form-group"><label for="reg-nickname">ชื่อสมาชิก (ชื่อเล่น)</label><input type="text" id="reg-nickname" required></div>
-                    <div class="form-group"><label for="reg-tel">เบอร์โทรศัพท์</label><input type="tel" id="reg-tel" required></div>
-                    <button type="submit" id="reg-submit-btn" class="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">ลงทะเบียน</button>
-                </form>
+        <div id="branch-section" class="section">
+            <h2>กรุณาเลือกสาขา</h2>
+            <div class="form-group"><label for="branch-select">สาขา</label>
+                <select id="branch-select">
+                    <option value="">-- เลือกสาขา --</option>
+                    <option value="Bangna">Bangna</option>
+                    <option value="Ngamwongwan">Ngamwongwan</option>
+                    <option value="WestGate">WestGate</option>
+                    <option value="EastVille">EastVille</option>
+                </select>
             </div>
         </div>
-    </main>
+
+        <div id="entry-section" class="section">
+            <h2>ค้นหาลูกค้า</h2>
+            <div id="qr-reader" style="width:100%;"></div>
+            <button id="start-scan-btn">สแกน QR Code</button>
+            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
+            <form id="manual-entry-form">
+                <div class="form-group"><label for="manual-userid">กรอก User ID</label><input type="text" id="manual-userid" placeholder="U12345..."></div>
+                <button type="submit">ค้นหาลูกค้า</button>
+            </form>
+        </div>
+
+        <div id="status-message"></div>
+        <div id="customer-details-section" class="section"></div>
+        <div id="checkin-section" class="section"></div>
+        <div id="checkout-section" class="section"></div>
+        
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าแรก</button>
+    </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const liffId = '2007836924-1X8GmJKj';
-            // Your new Web App URL is now updated here.
-            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwz6GNWTWOBT9uE-y6gaqwveSGxv3byGsGUHq3YHE3qdZZTfHlfGasEKPCOLFISGUeFqw/exec';
+        // --- CONFIGURATION ---
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqW0HuacgdlSvw_v_F6dny-xwSQ42gBBjxBLYGF00bmzSgA2kULxLGEYFSDLzZ9nuaoA/exec";
 
-            let userProfile = null;
+        // --- STATE ---
+        let selectedBranch = null;
+        let currentUserId = null;
+        let html5QrCode = null;
+        let availableTickets = []; // To store the fetched tickets
 
-            async function main() {
-                try {
-                    await liff.init({ liffId: liffId });
-                    if (!liff.isLoggedIn()) { liff.login(); return; }
-                    userProfile = await liff.getProfile();
-                    updateUI(userProfile);
-                    await checkMembershipStatus(userProfile.userId);
-                } catch (error) { showErrorState(`<b>LIFF Error:</b> ${error.message}.`); }
+        // --- DOM ELEMENTS ---
+        const loginSection = document.getElementById('login-section');
+        const branchSection = document.getElementById('branch-section');
+        const entrySection = document.getElementById('entry-section');
+        const statusMessage = document.getElementById('status-message');
+        const customerDetailsSection = document.getElementById('customer-details-section');
+        const checkinSection = document.getElementById('checkin-section');
+        const checkoutSection = document.getElementById('checkout-section');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // --- FUNCTIONS ---
+
+        function showStatus(message, isSuccess) {
+            statusMessage.textContent = message;
+            statusMessage.className = isSuccess ? 'status-success' : 'status-error';
+            statusMessage.style.display = 'block';
+        }
+        
+        function hideAllSections() {
+            loginSection.style.display = 'none';
+            branchSection.style.display = 'none';
+            entrySection.style.display = 'none';
+            customerDetailsSection.style.display = 'none';
+            checkinSection.style.display = 'none';
+            checkoutSection.style.display = 'none';
+            statusMessage.style.display = 'none';
+            resetBtn.style.display = 'none';
+        }
+
+        function resetToBranchSelect() {
+            hideAllSections();
+            branchSection.style.display = 'block';
+            resetBtn.style.display = 'block';
+            currentUserId = null;
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
             }
+        }
 
-            async function checkMembershipStatus(userId) {
-                const statusElement = document.getElementById('membership-status');
-                try {
-                    const url = new URL(MEMBER_SCRIPT_URL);
-                    url.searchParams.append('action', 'isMember');
-                    url.searchParams.append('userId', userId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (result.success) {
-                        if (result.isMember) {
-                            statusElement.textContent = 'Active Member';
-                            statusElement.className = 'text-sm font-medium text-green-500';
-                            showMemberApp(userId);
-                        } else {
-                            statusElement.textContent = 'Not a Member';
-                            statusElement.className = 'text-sm font-medium text-yellow-600';
-                            showRegistrationForm();
-                        }
-                    } else { throw new Error(result.message); }
-                } catch (error) {
-                    statusElement.textContent = 'Status Check Failed';
-                    statusElement.className = 'text-sm font-medium text-red-500';
+        function resetToLogin() {
+            hideAllSections();
+            loginSection.style.display = 'block';
+            document.getElementById('login-form').reset();
+        }
+
+        async function loadTickets() {
+            try {
+                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getTickets`);
+                const result = await response.json();
+                if (result.success) {
+                    availableTickets = result.data;
+                } else {
+                    throw new Error(result.message);
                 }
+            } catch (error) {
+                showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
             }
+        }
 
-            function showMemberApp(userId) {
-                document.getElementById('registration-section').style.display = 'none';
-                document.getElementById('member-app-section').style.display = 'block';
-                generateQrCode(userId);
+        async function processUserId(userId) {
+            if (!selectedBranch) {
+                showStatus('กรุณาเลือกสาขาก่อน', false);
+                return;
             }
-
-            function showRegistrationForm() {
-                document.getElementById('member-app-section').style.display = 'none';
-                document.getElementById('registration-section').style.display = 'block';
-            }
-
-            function updateUI(profile) {
-                document.getElementById('loading-state').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-                if (profile.pictureUrl) document.getElementById('user-picture').src = profile.pictureUrl;
-                document.getElementById('user-name').textContent = profile.displayName;
-            }
-
-            function generateQrCode(userId) {
-                const qrContainer = document.getElementById('qr-code-container');
-                qrContainer.innerHTML = '';
-                try { new QRCode(qrContainer, { text: userId, width: 256, height: 256 }); }
-                catch (error) { showErrorState('Could not generate the QR code.'); }
-            }
+            currentUserId = userId;
+            showStatus('กำลังค้นหาข้อมูลลูกค้า...', true);
             
-            // [NEW] Helper function to format date strings
-            function formatDate(dateString) {
-                if (!dateString || isNaN(new Date(dateString))) {
-                    return '-';
+            try {
+                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.message);
                 }
-                const date = new Date(dateString);
-                const day = ('0' + date.getUTCDate()).slice(-2);
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const month = monthNames[date.getUTCMonth()];
-                const year = date.getUTCFullYear();
-                return `${day} ${month} ${year}`;
-            }
 
-            async function loadProfileInfo() {
-                const displayDiv = document.getElementById('profile-display');
-                displayDiv.innerHTML = '<p>Loading info...</p>';
-                try {
-                    const url = new URL(MEMBER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getMemberInfo');
-                    url.searchParams.append('userId', userProfile.userId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (result.success) {
-                        // [MODIFIED] Using the new formatDate function
-                        displayDiv.innerHTML = `
-                            <div class="form-group"><label>ชื่อเล่น</label><p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p></div>
-                            <div class="form-group"><label>ชื่อจริง</label><p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p></div>
-                            <div class="form-group"><label>นามสกุล</label><p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p></div>
-                            <div class="form-group"><label>วันเกิด</label><p class="p-2 bg-gray-100 rounded-md">${formatDate(result.data.birthdate)}</p></div>
-                            <div class="form-group"><label>เพศ</label><p class="p-2 bg-gray-100 rounded-md">${result.data.gender || '-'}</p></div>
-                            <div class="form-group"><label>เบอร์โทรศัพท์</label><p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p></div>
-                            <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
-                        `;
-                        document.getElementById('edit-btn').addEventListener('click', () => showEditForm(result.data));
-                    } else { throw new Error(result.message); }
-                } catch (error) { displayDiv.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`; }
-            }
+                hideAllSections();
+                customerDetailsSection.style.display = 'block';
+                resetBtn.style.display = 'block';
 
-            function showEditForm(data) {
-                document.getElementById('profile-display').style.display = 'none';
-                const formDiv = document.getElementById('profile-edit-form');
-                formDiv.innerHTML = `
-                    <div class="form-group"><label for="edit-nickname">ชื่อเล่น</label><input type="text" id="edit-nickname" value="${data.nickname || ''}" required></div>
-                    <div class="form-group"><label for="edit-firstname">ชื่อจริง</label><input type="text" id="edit-firstname" value="${data.firstname || ''}" required></div>
-                    <div class="form-group"><label for="edit-lastname">นามสกุล</label><input type="text" id="edit-lastname" value="${data.lastname || ''}" required></div>
-                    <div class="form-group"><label for="edit-birthdate">วันเกิด</label><input type="date" id="edit-birthdate" value="${data.birthdate || ''}"></div>
-                    <div class="form-group"><label for="edit-gender">เพศ</label>
-                        <select id="edit-gender">
-                            <option value="" ${!data.gender ? 'selected' : ''}>-- ไม่ระบุ --</option>
-                            <option value="Male" ${data.gender === 'Male' ? 'selected' : ''}>ชาย</option>
-                            <option value="Female" ${data.gender === 'Female' ? 'selected' : ''}>หญิง</option>
-                            <option value="Other" ${data.gender === 'Other' ? 'selected' : ''}>อื่นๆ</option>
-                        </select>
+                const memberData = result.data;
+                customerDetailsSection.innerHTML = `
+                    <h2>ข้อมูลลูกค้า</h2>
+                    <div class="info-box">
+                        <p><strong>User ID:</strong> ${userId}</p>
+                        <p><strong>ชื่อเล่น:</strong> ${memberData.nickname || 'N/A'}</p>
+                        <p><strong>ชื่อจริง:</strong> ${memberData.firstname || 'N/A'}</p>
                     </div>
-                    <div class="form-group"><label for="edit-tel">เบอร์โทรศัพท์</label><input type="tel" id="edit-tel" value="${data.tel || ''}" required></div>
-                    <button id="save-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">บันทึก</button>
-                    <button id="cancel-btn" type="button" class="w-full mt-2 p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold">ยกเลิก</button>
                 `;
-                formDiv.style.display = 'block';
-                document.getElementById('save-btn').addEventListener('click', handleSaveInfo);
-                document.getElementById('cancel-btn').addEventListener('click', () => {
-                    formDiv.style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
+
+                checkinSection.style.display = 'block';
+                checkinSection.innerHTML = `
+                    <form id="checkin-form">
+                        <div class="form-group">
+                            <label for="table-select">ระบุโต๊ะ</label>
+                            <input type="text" id="table-select" required placeholder="เช่น A1, B2">
+                        </div>
+                        <div class="form-group">
+                            <label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label>
+                            <select id="ticket-select" required>
+                                <option value="">กำลังโหลด...</option>
+                            </select>
+                        </div>
+                        <button type="submit">ยืนยันการ Check-In</button>
+                    </form>
+                `;
+
+                const ticketSelect = document.getElementById('ticket-select');
+                ticketSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>';
+                availableTickets.forEach(ticket => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
+                    option.textContent = `${ticket.name} (${ticket.price} บาท)`;
+                    ticketSelect.appendChild(option);
                 });
-            }
 
-            async function handleSaveInfo() {
-                const saveBtn = document.getElementById('save-btn');
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'กำลังบันทึก...';
-                const payload = {
-                    action: 'updateMemberInfo',
-                    userId: userProfile.userId,
-                    nickname: document.getElementById('edit-nickname').value,
-                    firstname: document.getElementById('edit-firstname').value,
-                    lastname: document.getElementById('edit-lastname').value,
-                    birthdate: document.getElementById('edit-birthdate').value,
-                    gender: document.getElementById('edit-gender').value,
-                    tel: document.getElementById('edit-tel').value
-                };
-                try {
-                    await fetch(MEMBER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                    document.getElementById('profile-edit-form').style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
-                    loadProfileInfo();
-                } catch (error) {
-                    alert('Failed to save. Please try again.');
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'บันทึก';
+                document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
+
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+            }
+        }
+        
+        async function handleCheckInSubmit(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'กำลังบันทึก...';
+
+            const selectedTicketData = JSON.parse(document.getElementById('ticket-select').value);
+
+            const payload = {
+                action: 'checkIn',
+                userId: currentUserId,
+                branch: selectedBranch,
+                table: document.getElementById('table-select').value,
+                ticketName: selectedTicketData.name,
+                price: selectedTicketData.price
+            };
+
+            try {
+                const response = await fetch(MASTER_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify(payload)
+                });
+                showStatus('เช็คอินสำเร็จ!', true);
+                setTimeout(resetToBranchSelect, 2000);
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+                btn.disabled = false;
+                btn.textContent = 'ยืนยันการ Check-In';
+            }
+        }
+        
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const pin = document.getElementById('staff-pin').value;
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.textContent = 'กำลังตรวจสอบ...';
+
+            try {
+                const loginUrl = new URL(MASTER_SCRIPT_URL);
+                loginUrl.searchParams.append('action', 'staffLogin');
+                loginUrl.searchParams.append('pin', pin);
+                const response = await fetch(loginUrl);
+                const result = await response.json();
+
+                if (result.success) {
+                    hideAllSections();
+                    branchSection.style.display = 'block';
+                    resetBtn.style.display = 'block';
+                    await loadTickets();
+                } else {
+                    showStatus(result.message, false);
                 }
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'เข้าสู่ระบบ';
             }
-            
-            const tabQr = document.getElementById('tab-qr');
-            const tabProfile = document.getElementById('tab-profile');
-            const viewQr = document.getElementById('qr-code-view');
-            const viewProfile = document.getElementById('profile-info-view');
-            tabQr.addEventListener('click', () => {
-                tabQr.classList.add('active'); tabProfile.classList.remove('active');
-                viewQr.style.display = 'block'; viewProfile.style.display = 'none';
-            });
-            tabProfile.addEventListener('click', () => {
-                tabProfile.classList.add('active'); tabQr.classList.remove('active');
-                viewProfile.style.display = 'block'; viewQr.style.display = 'none';
-                loadProfileInfo();
-            });
-
-            document.getElementById('registration-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const submitBtn = document.getElementById('reg-submit-btn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'กำลังบันทึก...';
-                const payload = {
-                    action: 'registerMember', userId: userProfile.userId, displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl, nickname: document.getElementById('reg-nickname').value, tel: document.getElementById('reg-tel').value
-                };
-                try {
-                    await fetch(MEMBER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                    showMemberApp(userProfile.userId);
-                    document.getElementById('membership-status').textContent = 'Active Member';
-                    document.getElementById('membership-status').className = 'text-sm font-medium text-green-500';
-                } catch (error) {
-                    showErrorState('Registration failed. Please try again.');
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'ลงทะเบียน';
-                }
-            });
-
-            function showErrorState(message) {
-                document.getElementById('loading-state').style.display = 'none';
-                const errorState = document.getElementById('error-state');
-                errorState.querySelector('#error-message').innerHTML = message;
-                errorState.style.display = 'block';
-            }
-
-            main();
         });
+
+        document.getElementById('branch-select').addEventListener('change', () => {
+            selectedBranch = document.getElementById('branch-select').value;
+            if (selectedBranch) {
+                entrySection.style.display = 'block';
+            } else {
+                entrySection.style.display = 'none';
+            }
+        });
+
+        document.getElementById('start-scan-btn').addEventListener('click', () => {
+            html5QrCode = new Html5Qrcode("qr-reader");
+            const onScanSuccess = (decodedText, decodedResult) => {
+                if (html5QrCode.isScanning) {
+                    html5QrCode.stop().then(() => processUserId(decodedText));
+                }
+            };
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
+                .catch(err => console.error("QR scanner failed to start.", err));
+        });
+        
+        document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userId = document.getElementById('manual-userid').value;
+            if (userId) processUserId(userId);
+        });
+
+        resetBtn.addEventListener('click', resetToBranchSelect);
+        
+        resetToLogin();
+
     </script>
 </body>
 </html>
