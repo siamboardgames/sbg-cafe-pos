@@ -263,22 +263,20 @@
             btn.disabled = true;
             btn.textContent = 'กำลังตรวจสอบ...';
 
-            const loginUrl = new URL(MASTER_SCRIPT_URL);
-            loginUrl.searchParams.append('action', 'staffLogin');
-            loginUrl.searchParams.append('pin', pin);
+            const loginUrl = `${MASTER_SCRIPT_URL}?action=staffLogin&pin=${pin}`;
 
             try {
-                console.log("Attempting to login with URL:", loginUrl.href);
+                console.log("Attempting to login with URL:", loginUrl);
                 const response = await fetch(loginUrl);
                 
-                console.log("Response received from script:", response);
+                console.log("Response received from script. Status:", response.status);
 
                 if (!response.ok) {
                     throw new Error(`Network response was not ok. Status: ${response.status}`);
                 }
                 
                 const result = await response.json();
-                console.log("Parsed JSON result:", result);
+                console.log("Parsed JSON result from script:", result);
 
                 if (result.success) {
                     await loadTickets();
@@ -296,7 +294,7 @@
                 }
             } catch (error) {
                 console.error("Login failed with error:", error);
-                showStatus(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}. กรุณาตรวจสอบการตั้งค่าสคริปต์และการเชื่อมต่ออินเทอร์เน็ต`, false);
+                showStatus(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}. Please check script deployment settings (must be accessible by 'Anyone') and internet connection.`, false);
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'เข้าสู่ระบบ';
