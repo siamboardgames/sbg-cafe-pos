@@ -102,6 +102,7 @@
         }
         
         function hideAllSections() {
+            loginSection.style.display = 'none';
             allSections.forEach(section => section.style.display = 'none');
             statusMessage.style.display = 'none';
             resetBtn.style.display = 'none';
@@ -132,6 +133,15 @@
             } catch (error) {
                 showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
             }
+        }
+        
+        function calculateDuration(startTime) {
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            const diff = now - start;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            return `${hours} ชั่วโมง ${minutes} นาที`;
         }
 
         async function processUserId(userId) {
@@ -167,13 +177,13 @@
                 if (sessionResult.status === 'found') {
                     // CHECK-OUT FLOW
                     const sessionData = sessionResult.data;
-                    const checkInTime = new Date(sessionData.checkInTime).toLocaleTimeString('th-TH');
+                    const timePlayed = calculateDuration(sessionData.checkInTime);
                     checkoutSection.style.display = 'block';
                     checkoutSection.innerHTML = `
                         <h3>ลูกค้ากำลังใช้บริการ</h3>
                         <div class="info-box">
                             <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
-                            <p><strong>เวลาเช็คอิน:</strong> ${checkInTime}</p>
+                            <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
                             <p><strong>โปรโมชั่น:</strong> ${sessionData.ticketName} (${sessionData.price} บาท)</p>
                         </div>
                         <form id="checkout-form" style="margin-top: 1rem;">
