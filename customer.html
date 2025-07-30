@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Board Game Cafe - Member QR</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    
     <!-- QR Code Generation Library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
     <style>
@@ -73,18 +71,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // --- CONFIGURATION ---
-            // Your LIFF ID has been added here.
             const liffId = '2007836924-1X8GmJKj';
 
             // --- Main App Logic ---
             async function main() {
-                // First, validate the LIFF ID to prevent the "channel not found" error.
-                if (liffId === '2007836924-1X8GmJKj' || !liffId) {
-                    showErrorState('<b>Configuration Error:</b> Please replace "YOUR_LIFF_ID_HERE" in the code with your actual LIFF ID from the LINE Developers Console.');
-                    console.error('LIFF ID is not set. Please update the liffId variable in the script.');
-                    return; // Stop execution
-                }
-
                 try {
                     // Initialize LIFF
                     await liff.init({ liffId: liffId });
