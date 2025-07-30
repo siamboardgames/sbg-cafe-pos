@@ -1,100 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Board Game Cafe - Member QR</title>
+    <title>Board Game Cafe - Member</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <!-- [UPDATED] Using a more reliable QR Code Generation Library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
-        /* Custom font and QR code canvas styling */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        /* Styling for the new QR code library */
-        #qr-code-container img {
-            width: 100% !important;
-            height: auto !important;
-            border-radius: 0.75rem; /* 12px */
-            margin: auto; /* Center the image */
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+        #qr-code-container img { width: 100% !important; height: auto !important; border-radius: 0.75rem; margin: auto; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input[type="text"], input[type="tel"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <!-- Loading State -->
-    <div id="loading-state" class="text-center text-gray-600 dark:text-gray-300">
-        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <p>Loading your member info...</p>
+    <div id="loading-state" class="text-center text-gray-600">
+        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <p>กำลังโหลดข้อมูลสมาชิก...</p>
     </div>
 
-    <!-- Error State -->
-    <div id="error-state" class="hidden w-full max-w-sm mx-auto text-center bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-bold text-red-600 dark:text-red-400 mb-2">Error</h2>
-        <p id="error-message" class="text-gray-700 dark:text-gray-300">Could not initialize the app.</p>
+    <div id="error-state" class="hidden w-full max-w-sm mx-auto text-center bg-white p-6 rounded-lg shadow-lg">
+        <h2 class="text-xl font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h2>
+        <p id="error-message" class="text-gray-700">ไม่สามารถเริ่มต้นแอปได้</p>
     </div>
 
-    <!-- Main Content (Hidden by default) -->
-    <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8">
+    <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-8">
         <div class="text-center mb-6">
-            <p class="text-sm font-medium text-blue-600 dark:text-blue-400">Welcome to Our Cafe!</p>
-            <h1 class="text-2xl font-bold text-gray-800 dark:text-white mt-1">Your Member Card</h1>
+            <p class="text-sm font-medium text-blue-600">ยินดีต้อนรับ!</p>
+            <h1 id="main-header" class="text-2xl font-bold text-gray-800 mt-1">บัตรสมาชิกของคุณ</h1>
         </div>
         
-        <!-- User Profile Section -->
-        <div class="flex items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-xl mb-6">
-            <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white dark:border-gray-600 shadow-md">
+        <div class="flex items-center bg-gray-100 p-4 rounded-xl mb-6">
+            <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white shadow-md">
             <div class="ml-4">
-                <p id="user-name" class="font-bold text-lg text-gray-900 dark:text-white">Loading...</p>
-                <!-- Membership status will be displayed here -->
-                <p id="membership-status" class="text-sm font-medium text-gray-600 dark:text-gray-300">Checking status...</p>
+                <p id="user-name" class="font-bold text-lg text-gray-900">กำลังโหลด...</p>
+                <p id="membership-status" class="text-sm font-medium text-gray-600">กำลังตรวจสอบสถานะ...</p>
             </div>
         </div>
 
-        <!-- QR Code Section -->
-        <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
-            <h2 class="text-center font-semibold text-gray-700 dark:text-gray-300 mb-4">Show this QR code to the cashier</h2>
-            <div id="qr-code-container" class="w-full aspect-square p-4 bg-white rounded-lg flex items-center justify-center">
-                <!-- QR Code will be generated here by the new script -->
+        <!-- This wrapper will contain either the QR code or the registration form -->
+        <div id="content-wrapper">
+            
+            <!-- QR Code Section (Hidden by default) -->
+            <div id="qr-code-section" class="hidden bg-white p-6 rounded-xl shadow-inner border border-gray-200">
+                <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
+                <div id="qr-code-container" class="w-full aspect-square p-4 bg-white rounded-lg flex items-center justify-center"></div>
+            </div>
+
+            <!-- Registration Form Section (Hidden by default) -->
+            <div id="registration-section" class="hidden bg-white p-6 rounded-xl shadow-inner border border-gray-200">
+                <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
+                <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
+                <form id="registration-form">
+                    <div class="form-group">
+                        <label for="reg-name">ชื่อ-นามสกุล</label>
+                        <input type="text" id="reg-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-tel">เบอร์โทรศัพท์</label>
+                        <input type="tel" id="reg-tel" required>
+                    </div>
+                    <button type="submit" id="reg-submit-btn" class="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">ลงทะเบียน</button>
+                </form>
             </div>
         </div>
-
-        <p class="text-xs text-center text-gray-500 dark:text-gray-400 mt-6">
-            This QR code is your unique identifier for orders and membership.
-        </p>
     </main>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // --- CONFIGURATION ---
             const liffId = '2007836924-1X8GmJKj';
-            const MEMBER_CHECK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuNUIN_OyYsEiy5FtBY6m3T-EZDveG81Ghxa8NHpBCL8mHbWJeLlzOikPnzzEBdVyT0g/exec';
+            // Your new Web App URL has been added here.
+            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyXiRQzL2vPgYEmd8ppPramwWBH-RR94bRLR9oG3CfOk6BOQyT1Gv-4vUaYdp4CbuTC3A/exec';
+
+            // --- DOM ELEMENTS ---
+            const qrCodeSection = document.getElementById('qr-code-section');
+            const registrationSection = document.getElementById('registration-section');
+            const mainHeader = document.getElementById('main-header');
+            
+            let userProfile = null; // To store user profile info
 
             // --- Main App Logic ---
             async function main() {
                 try {
                     await liff.init({ liffId: liffId });
-
                     if (!liff.isLoggedIn()) {
                         liff.login();
                         return;
                     }
-
-                    const profile = await liff.getProfile();
-                    
-                    checkMembershipStatus(profile.userId);
-                    generateQrCode(profile.userId);
-                    updateUI(profile);
-
+                    userProfile = await liff.getProfile();
+                    updateUI(userProfile);
+                    await checkMembershipStatus(userProfile.userId);
                 } catch (error) {
-                    console.error('LIFF Initialization Error:', error);
                     showErrorState(`<b>LIFF Error:</b> ${error.message}.`);
                 }
             }
@@ -102,7 +104,7 @@
             async function checkMembershipStatus(userId) {
                 const statusElement = document.getElementById('membership-status');
                 try {
-                    const url = new URL(MEMBER_CHECK_SCRIPT_URL);
+                    const url = new URL(MEMBER_SCRIPT_URL);
                     url.searchParams.append('action', 'isMember');
                     url.searchParams.append('userId', userId);
 
@@ -112,64 +114,91 @@
                     if (result.success) {
                         if (result.isMember) {
                             statusElement.textContent = 'Active Member';
-                            statusElement.className = 'text-sm font-medium text-green-500 dark:text-green-400';
+                            statusElement.className = 'text-sm font-medium text-green-500';
+                            showQrCode(userId);
                         } else {
                             statusElement.textContent = 'Not a Member';
-                            statusElement.className = 'text-sm font-medium text-yellow-600 dark:text-yellow-400';
+                            statusElement.className = 'text-sm font-medium text-yellow-600';
+                            showRegistrationForm();
                         }
-                    } else {
-                        throw new Error(result.message || 'Unknown error');
-                    }
+                    } else { throw new Error(result.message); }
                 } catch (error) {
-                    console.error('Membership Check Error:', error);
                     statusElement.textContent = 'Status Check Failed';
-                    statusElement.className = 'text-sm font-medium text-red-500 dark:text-red-400';
+                    statusElement.className = 'text-sm font-medium text-red-500';
                 }
+            }
+
+            function showQrCode(userId) {
+                mainHeader.textContent = 'บัตรสมาชิกของคุณ';
+                registrationSection.style.display = 'none';
+                qrCodeSection.style.display = 'block';
+                generateQrCode(userId);
+            }
+
+            function showRegistrationForm() {
+                mainHeader.textContent = 'ลงทะเบียนสมาชิก';
+                qrCodeSection.style.display = 'none';
+                registrationSection.style.display = 'block';
             }
 
             function updateUI(profile) {
-                document.getElementById('loading-state').classList.add('hidden');
-                document.getElementById('main-content').classList.remove('hidden');
-
-                const userPicture = document.getElementById('user-picture');
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
                 if (profile.pictureUrl) {
-                    userPicture.src = profile.pictureUrl;
+                    document.getElementById('user-picture').src = profile.pictureUrl;
                 }
-                
                 document.getElementById('user-name').textContent = profile.displayName;
             }
 
-            // --- [UPDATED] Function to generate QR code with the new library ---
             function generateQrCode(userId) {
-                const qrCodeContainer = document.getElementById('qr-code-container');
-                qrCodeContainer.innerHTML = ''; // Clear previous QR code if any
+                const qrContainer = document.getElementById('qr-code-container');
+                qrContainer.innerHTML = '';
                 try {
-                    new QRCode(qrCodeContainer, {
-                        text: userId,
-                        width: 256,
-                        height: 256,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H
-                    });
-                } catch (error) {
-                    console.error('QR Code Generation Error:', error);
-                    showErrorState('Could not generate the QR code.');
-                }
+                    new QRCode(qrContainer, { text: userId, width: 256, height: 256 });
+                } catch (error) { showErrorState('Could not generate the QR code.'); }
             }
+            
+            document.getElementById('registration-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = document.getElementById('reg-submit-btn');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'กำลังบันทึก...';
+
+                const payload = {
+                    action: 'registerMember',
+                    userId: userProfile.userId,
+                    displayName: userProfile.displayName,
+                    pictureUrl: userProfile.pictureUrl,
+                    name: document.getElementById('reg-name').value,
+                    tel: document.getElementById('reg-tel').value
+                };
+
+                try {
+                    const response = await fetch(MEMBER_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', // Fire-and-forget
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    // Assume success and show QR code
+                    showQrCode(userProfile.userId);
+                    document.getElementById('membership-status').textContent = 'Active Member';
+                    document.getElementById('membership-status').className = 'text-sm font-medium text-green-500';
+
+                } catch (error) {
+                    showErrorState('Registration failed. Please try again.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'ลงทะเบียน';
+                }
+            });
 
             function showErrorState(message) {
-                document.getElementById('loading-state').classList.add('hidden');
-                document.getElementById('main-content').classList.add('hidden');
-                
+                document.getElementById('loading-state').style.display = 'none';
                 const errorState = document.getElementById('error-state');
-                const errorMessage = document.getElementById('error-message');
-                
-                errorMessage.innerHTML = message;
-                errorState.classList.remove('hidden');
+                errorState.querySelector('#error-message').innerHTML = message;
+                errorState.style.display = 'block';
             }
 
-            // --- Run the app ---
             main();
         });
     </script>
