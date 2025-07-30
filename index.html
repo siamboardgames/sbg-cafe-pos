@@ -70,15 +70,13 @@
     </div>
 
     <script>
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx96r1Srct2xkINN6nENsbPAbVFhprvwQopGw4J3CVIXIhrfjiHhplfGUgvhUCsSLu9BA/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxVGXRxz0M1lg6iWm4iijbvHJxhYqzF_2CF9HTTUjHAOkG24BExdMAcZUGakImw21iSbw/exec";
         
-        // --- STATE ---
         let selectedBranch = null;
         let currentUserId = null;
         let html5QrCode = null;
         let availableTickets = [];
 
-        // --- DOM ELEMENTS ---
         const allSections = document.querySelectorAll('.section');
         const loginSection = document.getElementById('login-section');
         const branchSection = document.getElementById('branch-section');
@@ -89,7 +87,6 @@
         const checkoutSection = document.getElementById('checkout-section');
         const resetBtn = document.getElementById('reset-btn');
 
-        // --- FUNCTIONS ---
         function showStatus(message, isSuccess) {
             statusMessage.textContent = message;
             statusMessage.className = isSuccess ? 'status-success' : 'status-error';
@@ -170,7 +167,6 @@
                 `;
 
                 if (sessionResult.status === 'found') {
-                    // CHECK-OUT FLOW
                     const sessionData = sessionResult.data;
                     const timePlayed = calculateDuration(sessionData.checkInTime);
                     checkoutSection.style.display = 'block';
@@ -188,11 +184,19 @@
                     `;
                     document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
                 } else {
-                    // CHECK-IN FLOW
                     checkinSection.style.display = 'block';
                     checkinSection.innerHTML = `
                         <form id="checkin-form">
                             <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
+                            <div class="form-group"><label for="players-input">จำนวนผู้เล่น</label><input type="number" id="players-input" required value="1" min="1"></div>
+                            <div class="form-group"><label for="customer-type-select">ประเภทลูกค้า</label>
+                                <select id="customer-type-select" required>
+                                    <option value="">-- เลือกประเภท --</option>
+                                    <option value="นักศึกษา">นักศึกษา</option>
+                                    <option value="วัยทำงาน">วัยทำงาน</option>
+                                    <option value="ครอบครัว">ครอบครัว</option>
+                                </select>
+                            </div>
                             <div class="form-group"><label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label><select id="ticket-select" required></select></div>
                             <button type="submit">ยืนยันการ Check-In</button>
                         </form>
@@ -207,7 +211,6 @@
                     });
                     document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
                 }
-
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
             }
@@ -221,6 +224,8 @@
             const payload = {
                 action: 'checkIn', userId: currentUserId, branch: selectedBranch,
                 table: document.getElementById('table-select').value,
+                players: document.getElementById('players-input').value,
+                customerType: document.getElementById('customer-type-select').value,
                 ticketName: selectedTicketData.name, price: selectedTicketData.price
             };
             try {
@@ -306,7 +311,6 @@
             e.preventDefault();
             const customerId = document.getElementById('manual-customerid').value;
             if (!customerId) return;
-
             showStatus('กำลังค้นหา User ID...', true);
             try {
                 const url = new URL(MASTER_SCRIPT_URL);
