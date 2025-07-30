@@ -12,7 +12,7 @@
         .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input[type="text"], input[type="number"], input[type="password"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
         button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
@@ -22,8 +22,6 @@
         .status-success { background-color: #d4edda; color: #155724; }
         .status-error { background-color: #f8d7da; color: #721c24; }
         .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
-        .info-box p { margin: 0.5rem 0; }
-        .info-box strong { color: #000; }
         #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
     </style>
 </head>
@@ -32,23 +30,17 @@
     <div class="container">
         <h1>ระบบจัดการร้านค้า</h1>
         
-        <!-- [NEW] Staff Login Section -->
         <div id="login-section">
             <h2>พนักงานเข้าสู่ระบบ</h2>
             <form id="login-form">
-                <div class="form-group">
-                    <label for="staff-pin">กรอกรหัส PIN</label>
-                    <input type="password" id="staff-pin" inputmode="numeric" pattern="[0-9]*" placeholder="****" required>
-                </div>
+                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" pattern="[0-9]*" placeholder="****" required></div>
                 <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
             </form>
         </div>
 
-        <!-- Branch Selection Section -->
         <div id="branch-section" class="section">
             <h2>กรุณาเลือกสาขา</h2>
-            <div class="form-group">
-                <label for="branch-select">สาขา</label>
+            <div class="form-group"><label for="branch-select">สาขา</label>
                 <select id="branch-select">
                     <option value="">-- เลือกสาขา --</option>
                     <option value="Bangna">Bangna</option>
@@ -59,17 +51,13 @@
             </div>
         </div>
 
-        <!-- Entry Section for Scan or Manual Input -->
         <div id="entry-section" class="section">
             <h2>ค้นหาลูกค้า</h2>
             <div id="qr-reader" style="width:100%;"></div>
             <button id="start-scan-btn">สแกน QR Code</button>
             <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
             <form id="manual-entry-form">
-                <div class="form-group">
-                    <label for="manual-userid">กรอก User ID ของลูกค้า</label>
-                    <input type="text" id="manual-userid" placeholder="U12345...">
-                </div>
+                <div class="form-group"><label for="manual-userid">กรอก User ID</label><input type="text" id="manual-userid" placeholder="U12345..."></div>
                 <button type="submit">ค้นหาลูกค้า</button>
             </form>
         </div>
@@ -84,12 +72,13 @@
 
     <script>
         // --- CONFIGURATION ---
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyoditLJ9fzUIwXNH7x1UJ7giUNFyh-I5MVJav6_Ujkx1d9mLEPYz9QEsPhlrn5e-aWYA/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqrfRhSzDAknhyprpq2MGIHEOdEGHbQsnk0c2WV8nTUx1HZBXfQHHbc1lH_kurlNGcnA/exec";
 
         // --- STATE ---
         let selectedBranch = null;
         let currentUserId = null;
         let html5QrCode = null;
+        let availableTickets = []; // [NEW] To store the fetched tickets
 
         // --- DOM ELEMENTS ---
         const loginSection = document.getElementById('login-section');
@@ -136,6 +125,21 @@
             document.getElementById('login-form').reset();
         }
 
+        // [NEW] Fetches tickets from the Google Sheet
+        async function loadTickets() {
+            try {
+                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getTickets`);
+                const result = await response.json();
+                if (result.success) {
+                    availableTickets = result.data;
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
+            }
+        }
+
         async function processUserId(userId) {
             if (!selectedBranch) {
                 showStatus('กรุณาเลือกสาขาก่อน', false);
@@ -145,7 +149,8 @@
             showStatus('กำลังค้นหาข้อมูลลูกค้า...', true);
             
             try {
-                const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=getUserStatus&userId=${userId}&branch=${selectedBranch}`);
+                // Use the master script to get member info, not just status
+                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
                 const result = await response.json();
 
                 if (!result.success) {
@@ -156,64 +161,47 @@
                 customerDetailsSection.style.display = 'block';
                 resetBtn.style.display = 'block';
 
-                if (result.status === 'found') {
-                    // Customer is already checked in, show checkout form
-                    const checkInTime = new Date(result.data.checkInTime);
-                    customerDetailsSection.innerHTML = `
-                        <h2>ข้อมูลลูกค้า (Check-Out)</h2>
-                        <div class="info-box">
-                            <p><strong>User ID:</strong> ${result.data.userId}</p>
-                            <p><strong>สาขา:</strong> ${result.data.branch}</p>
-                            <p><strong>เวลาเช็คอิน:</strong> ${checkInTime.toLocaleString()}</p>
-                            <p><strong>แพ็คเกจ:</strong> ${result.data.couponType}</p>
+                // Display member details
+                const memberData = result.data;
+                customerDetailsSection.innerHTML = `
+                    <h2>ข้อมูลลูกค้า</h2>
+                    <div class="info-box">
+                        <p><strong>User ID:</strong> ${userId}</p>
+                        <p><strong>ชื่อเล่น:</strong> ${memberData.nickname || 'N/A'}</p>
+                        <p><strong>ชื่อจริง:</strong> ${memberData.firstname || 'N/A'}</p>
+                    </div>
+                `;
+
+                // Now show the check-in form
+                checkinSection.style.display = 'block';
+                checkinSection.innerHTML = `
+                    <form id="checkin-form">
+                        <div class="form-group">
+                            <label for="table-select">ระบุโต๊ะ</label>
+                            <input type="text" id="table-select" required placeholder="เช่น A1, B2">
                         </div>
-                    `;
-                    checkoutSection.style.display = 'block';
-                    checkoutSection.innerHTML = `
-                        <form id="checkout-form">
-                            <div class="form-group">
-                                <label for="final-price">ราคาสุทธิ</label>
-                                <input type="number" id="final-price" value="${result.data.price}" required>
-                            </div>
-                            <input type="hidden" id="checkout-row" value="${result.data.row}">
-                            <button type="submit">Check-Out</button>
-                        </form>
-                    `;
-                    document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
-                } else {
-                    // Customer is not checked in, show check-in form
-                    customerDetailsSection.innerHTML = `
-                        <h2>ข้อมูลลูกค้า (Check-In)</h2>
-                        <div class="info-box">
-                            <p><strong>User ID:</strong> ${userId}</p>
-                            <p><strong>สาขา:</strong> ${selectedBranch}</p>
-                            <p>ลูกค้าใหม่สำหรับสาขานี้</p>
+                        <div class="form-group">
+                            <label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label>
+                            <select id="ticket-select" required>
+                                <option value="">กำลังโหลด...</option>
+                            </select>
                         </div>
-                    `;
-                    checkinSection.style.display = 'block';
-                    checkinSection.innerHTML = `
-                        <form id="checkin-form">
-                            <div class="form-group">
-                                <label for="coupon-type">ประเภทคูปอง</label>
-                                <select id="coupon-type" required>
-                                    <option value="1 Hour">1 Hour</option>
-                                    <option value="3 Hours">3 Hours</option>
-                                    <option value="All Day">All Day</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="price">ราคา</label>
-                                <input type="number" id="price" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="promotion">โปรโมชั่น (ถ้ามี)</label>
-                                <input type="text" id="promotion">
-                            </div>
-                            <button type="submit">Check-In</button>
-                        </form>
-                    `;
-                    document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
-                }
+                        <button type="submit">ยืนยันการ Check-In</button>
+                    </form>
+                `;
+
+                // Populate the ticket dropdown
+                const ticketSelect = document.getElementById('ticket-select');
+                ticketSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>'; // Clear loading text
+                availableTickets.forEach(ticket => {
+                    const option = document.createElement('option');
+                    option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
+                    option.textContent = `${ticket.name} (${ticket.price} บาท)`;
+                    ticketSelect.appendChild(option);
+                });
+
+                document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
+
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
             }
@@ -225,57 +213,29 @@
             btn.disabled = true;
             btn.textContent = 'กำลังบันทึก...';
 
+            const selectedTicketData = JSON.parse(document.getElementById('ticket-select').value);
+
             const payload = {
                 action: 'checkIn',
                 userId: currentUserId,
                 branch: selectedBranch,
-                couponType: document.getElementById('coupon-type').value,
-                price: document.getElementById('price').value,
-                promotion: document.getElementById('promotion').value
+                table: document.getElementById('table-select').value,
+                ticketName: selectedTicketData.name,
+                price: selectedTicketData.price
             };
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                const response = await fetch(MASTER_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors', // Use no-cors for simple requests to Apps Script
-                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'no-cors',
                     body: JSON.stringify(payload)
                 });
-                // Note: no-cors means we can't read the response, so we'll just assume success
                 showStatus('เช็คอินสำเร็จ!', true);
                 setTimeout(resetToBranchSelect, 2000);
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
                 btn.disabled = false;
-                btn.textContent = 'Check-In';
-            }
-        }
-
-        async function handleCheckOutSubmit(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true;
-            btn.textContent = 'กำลังบันทึก...';
-
-            const payload = {
-                action: 'checkOut',
-                row: document.getElementById('checkout-row').value,
-                finalPrice: document.getElementById('final-price').value
-            };
-
-            try {
-                await fetch(GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                showStatus('เช็คเอาท์สำเร็จ!', true);
-                setTimeout(resetToBranchSelect, 2000);
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false;
-                btn.textContent = 'Check-Out';
+                btn.textContent = 'ยืนยันการ Check-In';
             }
         }
         
@@ -289,18 +249,18 @@
             btn.textContent = 'กำลังตรวจสอบ...';
 
             try {
-                // --- MODIFIED: Switched from POST to GET for the login request to avoid CORS issues ---
-                const loginUrl = new URL(GOOGLE_SCRIPT_URL);
-                loginUrl.searchParams.append('action', 'staffLogin');
+                // This login logic remains the same (using GET)
+                const loginUrl = new URL(MASTER_SCRIPT_URL);
+                loginUrl.searchParams.append('action', 'staffLogin'); // Assuming you have this action in your master script
                 loginUrl.searchParams.append('pin', pin);
-
-                const response = await fetch(loginUrl); // This is now a GET request
+                const response = await fetch(loginUrl);
                 const result = await response.json();
 
                 if (result.success) {
                     hideAllSections();
                     branchSection.style.display = 'block';
                     resetBtn.style.display = 'block';
+                    await loadTickets(); // [NEW] Load tickets after successful login
                 } else {
                     showStatus(result.message, false);
                 }
@@ -322,33 +282,26 @@
         });
 
         document.getElementById('start-scan-btn').addEventListener('click', () => {
-            const qrReaderDiv = document.getElementById('qr-reader');
             html5QrCode = new Html5Qrcode("qr-reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            
             const onScanSuccess = (decodedText, decodedResult) => {
                 if (html5QrCode.isScanning) {
-                    html5QrCode.stop();
+                    html5QrCode.stop().then(() => processUserId(decodedText));
                 }
-                processUserId(decodedText);
             };
-            
-            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess)
-                .catch(err => console.error("QR Code scanner error:", err));
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
+                .catch(err => console.error("QR scanner failed to start.", err));
         });
         
         document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const userId = document.getElementById('manual-userid').value;
-            if (userId) {
-                processUserId(userId);
-            }
+            if (userId) processUserId(userId);
         });
 
         resetBtn.addEventListener('click', resetToBranchSelect);
         
         // --- INITIALIZATION ---
-        resetToLogin(); // Start the app at the login screen
+        resetToLogin();
 
     </script>
 </body>
