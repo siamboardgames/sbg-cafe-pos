@@ -201,20 +201,21 @@
                 const memberApp = document.getElementById('member-app-section');
                 memberApp.style.display = 'block';
                 const tabsContainer = document.getElementById('tabs-container');
+                // [MODIFIED] Reordered the tabs and event listeners
                 tabsContainer.innerHTML = `
-                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
                     <div id="tab-qr" class="tab-button">QR Code</div>
+                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
                     <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
                 `;
-                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
                 document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
+                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
                 document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
                 
-                switchTab('playing-status-view'); // Default to Status view
-                generateQrCode(userId); // Generate QR code in the background
+                // [MODIFIED] Default to QR Code view
+                switchTab('qr-code-view'); 
+                generateQrCode(userId);
             }
 
-            // --- The rest of your existing JavaScript functions ---
             function showRegistrationForm() {
                 document.getElementById('member-app-section').style.display = 'none';
                 document.getElementById('registration-section').style.display = 'block';
