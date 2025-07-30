@@ -13,7 +13,7 @@
         #qr-code-container img { width: 100% !important; height: auto !important; border-radius: 0.75rem; margin: auto; }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input[type="text"], input[type="tel"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        input[type="text"], input[type="tel"], input[type="date"], select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
         .tab-button { flex: 1; padding: 0.75rem; text-align: center; background-color: #e9ecef; color: #495057; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; }
         .tab-button.active { background-color: #fff; color: #007bff; border-bottom-color: #007bff; }
@@ -65,7 +65,6 @@
                 <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
                 <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
                 <form id="registration-form">
-                    <!-- [MODIFIED] Changed label and input id -->
                     <div class="form-group"><label for="reg-nickname">ชื่อสมาชิก (ชื่อเล่น)</label><input type="text" id="reg-nickname" required></div>
                     <div class="form-group"><label for="reg-tel">เบอร์โทรศัพท์</label><input type="tel" id="reg-tel" required></div>
                     <button type="submit" id="reg-submit-btn" class="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">ลงทะเบียน</button>
@@ -77,8 +76,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            // [MODIFIED] Updated to the latest script URL
-            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf9dNJm4q8P-TBE86oL1SiiqYjgEd_L7NG5hgs1U4ULjno7pTc2lhesMcVHS0NWZRCNQ/exec';
+            // Your new Web App URL is now updated here.
+            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwz6GNWTWOBT9uE-y6gaqwveSGxv3byGsGUHq3YHE3qdZZTfHlfGasEKPCOLFISGUeFqw/exec';
 
             let userProfile = null;
 
@@ -100,7 +99,6 @@
                     url.searchParams.append('userId', userId);
                     const response = await fetch(url);
                     const result = await response.json();
-
                     if (result.success) {
                         if (result.isMember) {
                             statusElement.textContent = 'Active Member';
@@ -139,9 +137,8 @@
             function generateQrCode(userId) {
                 const qrContainer = document.getElementById('qr-code-container');
                 qrContainer.innerHTML = '';
-                try {
-                    new QRCode(qrContainer, { text: userId, width: 256, height: 256 });
-                } catch (error) { showErrorState('Could not generate the QR code.'); }
+                try { new QRCode(qrContainer, { text: userId, width: 256, height: 256 }); }
+                catch (error) { showErrorState('Could not generate the QR code.'); }
             }
 
             async function loadProfileInfo() {
@@ -154,24 +151,13 @@
                     const response = await fetch(url);
                     const result = await response.json();
                     if (result.success) {
-                        // [MODIFIED] Display Nickname, FirstName, LastName
                         displayDiv.innerHTML = `
-                            <div class="form-group">
-                                <label>ชื่อเล่น</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p>
-                            </div>
-                            <div class="form-group">
-                                <label>ชื่อจริง</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p>
-                            </div>
-                             <div class="form-group">
-                                <label>นามสกุล</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p>
-                            </div>
-                            <div class="form-group">
-                                <label>เบอร์โทรศัพท์</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p>
-                            </div>
+                            <div class="form-group"><label>ชื่อเล่น</label><p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p></div>
+                            <div class="form-group"><label>ชื่อจริง</label><p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p></div>
+                            <div class="form-group"><label>นามสกุล</label><p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p></div>
+                            <div class="form-group"><label>วันเกิด</label><p class="p-2 bg-gray-100 rounded-md">${result.data.birthdate || '-'}</p></div>
+                            <div class="form-group"><label>เพศ</label><p class="p-2 bg-gray-100 rounded-md">${result.data.gender || '-'}</p></div>
+                            <div class="form-group"><label>เบอร์โทรศัพท์</label><p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p></div>
                             <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
                         `;
                         document.getElementById('edit-btn').addEventListener('click', () => showEditForm(result.data));
@@ -182,24 +168,20 @@
             function showEditForm(data) {
                 document.getElementById('profile-display').style.display = 'none';
                 const formDiv = document.getElementById('profile-edit-form');
-                // [MODIFIED] Edit form with all new fields
                 formDiv.innerHTML = `
-                    <div class="form-group">
-                        <label for="edit-nickname">ชื่อเล่น</label>
-                        <input type="text" id="edit-nickname" value="${data.nickname || ''}" required>
+                    <div class="form-group"><label for="edit-nickname">ชื่อเล่น</label><input type="text" id="edit-nickname" value="${data.nickname || ''}" required></div>
+                    <div class="form-group"><label for="edit-firstname">ชื่อจริง</label><input type="text" id="edit-firstname" value="${data.firstname || ''}" required></div>
+                    <div class="form-group"><label for="edit-lastname">นามสกุล</label><input type="text" id="edit-lastname" value="${data.lastname || ''}" required></div>
+                    <div class="form-group"><label for="edit-birthdate">วันเกิด</label><input type="date" id="edit-birthdate" value="${data.birthdate || ''}"></div>
+                    <div class="form-group"><label for="edit-gender">เพศ</label>
+                        <select id="edit-gender">
+                            <option value="" ${!data.gender ? 'selected' : ''}>-- ไม่ระบุ --</option>
+                            <option value="Male" ${data.gender === 'Male' ? 'selected' : ''}>ชาย</option>
+                            <option value="Female" ${data.gender === 'Female' ? 'selected' : ''}>หญิง</option>
+                            <option value="Other" ${data.gender === 'Other' ? 'selected' : ''}>อื่นๆ</option>
+                        </select>
                     </div>
-                    <div class="form-group">
-                        <label for="edit-firstname">ชื่อจริง</label>
-                        <input type="text" id="edit-firstname" value="${data.firstname || ''}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-lastname">นามสกุล</label>
-                        <input type="text" id="edit-lastname" value="${data.lastname || ''}" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="edit-tel">เบอร์โทรศัพท์</label>
-                        <input type="tel" id="edit-tel" value="${data.tel || ''}" required>
-                    </div>
+                    <div class="form-group"><label for="edit-tel">เบอร์โทรศัพท์</label><input type="tel" id="edit-tel" value="${data.tel || ''}" required></div>
                     <button id="save-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">บันทึก</button>
                     <button id="cancel-btn" type="button" class="w-full mt-2 p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold">ยกเลิก</button>
                 `;
@@ -215,19 +197,18 @@
                 const saveBtn = document.getElementById('save-btn');
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'กำลังบันทึก...';
-                // [MODIFIED] Payload with all new fields
                 const payload = {
                     action: 'updateMemberInfo',
                     userId: userProfile.userId,
                     nickname: document.getElementById('edit-nickname').value,
                     firstname: document.getElementById('edit-firstname').value,
                     lastname: document.getElementById('edit-lastname').value,
+                    birthdate: document.getElementById('edit-birthdate').value,
+                    gender: document.getElementById('edit-gender').value,
                     tel: document.getElementById('edit-tel').value
                 };
                 try {
-                    await fetch(MEMBER_SCRIPT_URL, {
-                        method: 'POST', mode: 'no-cors', body: JSON.stringify(payload)
-                    });
+                    await fetch(MEMBER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
                     document.getElementById('profile-edit-form').style.display = 'none';
                     document.getElementById('profile-display').style.display = 'block';
                     loadProfileInfo();
@@ -242,18 +223,13 @@
             const tabProfile = document.getElementById('tab-profile');
             const viewQr = document.getElementById('qr-code-view');
             const viewProfile = document.getElementById('profile-info-view');
-
             tabQr.addEventListener('click', () => {
-                tabQr.classList.add('active');
-                tabProfile.classList.remove('active');
-                viewQr.style.display = 'block';
-                viewProfile.style.display = 'none';
+                tabQr.classList.add('active'); tabProfile.classList.remove('active');
+                viewQr.style.display = 'block'; viewProfile.style.display = 'none';
             });
             tabProfile.addEventListener('click', () => {
-                tabProfile.classList.add('active');
-                tabQr.classList.remove('active');
-                viewProfile.style.display = 'block';
-                viewQr.style.display = 'none';
+                tabProfile.classList.add('active'); tabQr.classList.remove('active');
+                viewProfile.style.display = 'block'; viewQr.style.display = 'none';
                 loadProfileInfo();
             });
 
@@ -262,7 +238,6 @@
                 const submitBtn = document.getElementById('reg-submit-btn');
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'กำลังบันทึก...';
-                // [MODIFIED] Payload for new registration flow
                 const payload = {
                     action: 'registerMember', userId: userProfile.userId, displayName: userProfile.displayName,
                     pictureUrl: userProfile.pictureUrl, nickname: document.getElementById('reg-nickname').value, tel: document.getElementById('reg-tel').value
