@@ -15,7 +15,6 @@
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
         input[type="text"], input[type="tel"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        /* Tab styling */
         .tab-button { flex: 1; padding: 0.75rem; text-align: center; background-color: #e9ecef; color: #495057; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; }
         .tab-button.active { background-color: #fff; color: #007bff; border-bottom-color: #007bff; }
     </style>
@@ -33,7 +32,6 @@
     </div>
 
     <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl">
-        <!-- User Profile Header (always visible) -->
         <div class="p-6">
             <div class="flex items-center bg-gray-100 p-4 rounded-xl">
                 <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white shadow-md">
@@ -44,40 +42,31 @@
             </div>
         </div>
         
-        <!-- This wrapper will contain either the main app or the registration form -->
         <div id="content-wrapper">
-            
-            <!-- Main App for Members (Tabs) -->
             <div id="member-app-section" class="hidden">
                 <div class="flex border-t border-b">
                     <div id="tab-qr" class="tab-button active">QR Code</div>
                     <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
                 </div>
                 <div class="p-6">
-                    <!-- QR Code View -->
                     <div id="qr-code-view">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
                         <div id="qr-code-container" class="w-full max-w-xs mx-auto aspect-square p-4 bg-white rounded-lg flex items-center justify-center border"></div>
                     </div>
-                    <!-- Profile Info View -->
                     <div id="profile-info-view" class="hidden">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">ข้อมูลสมาชิก</h2>
-                        <div id="profile-display" class="space-y-3">
-                            <!-- Info will be loaded here -->
-                        </div>
-                        <div id="profile-edit-form" class="hidden space-y-3">
-                            <!-- Edit form will be injected here -->
-                        </div>
+                        <div id="profile-display" class="space-y-3"></div>
+                        <div id="profile-edit-form" class="hidden space-y-3"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- Registration Form Section (for non-members) -->
             <div id="registration-section" class="hidden p-6">
                 <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
                 <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
                 <form id="registration-form">
-                    <div class="form-group"><label for="reg-name">ชื่อ-นามสกุล</label><input type="text" id="reg-name" required></div>
+                    <!-- [MODIFIED] Changed label and input id -->
+                    <div class="form-group"><label for="reg-nickname">ชื่อสมาชิก (ชื่อเล่น)</label><input type="text" id="reg-nickname" required></div>
                     <div class="form-group"><label for="reg-tel">เบอร์โทรศัพท์</label><input type="tel" id="reg-tel" required></div>
                     <button type="submit" id="reg-submit-btn" class="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">ลงทะเบียน</button>
                 </form>
@@ -88,7 +77,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx6CgfsAAiHo6FLnI4sGiWq5DGbxy9On1QAAOTPn3Cglz_uN6dgU7kaldLdtiQPpx2gOw/exec';
+            // [MODIFIED] Updated to the latest script URL
+            const MEMBER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwf9dNJm4q8P-TBE86oL1SiiqYjgEd_L7NG5hgs1U4ULjno7pTc2lhesMcVHS0NWZRCNQ/exec';
 
             let userProfile = null;
 
@@ -164,14 +154,23 @@
                     const response = await fetch(url);
                     const result = await response.json();
                     if (result.success) {
+                        // [MODIFIED] Display Nickname, FirstName, LastName
                         displayDiv.innerHTML = `
                             <div class="form-group">
-                                <label>ชื่อ-นามสกุล</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.name}</p>
+                                <label>ชื่อเล่น</label>
+                                <p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p>
+                            </div>
+                            <div class="form-group">
+                                <label>ชื่อจริง</label>
+                                <p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p>
+                            </div>
+                             <div class="form-group">
+                                <label>นามสกุล</label>
+                                <p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p>
                             </div>
                             <div class="form-group">
                                 <label>เบอร์โทรศัพท์</label>
-                                <p class="p-2 bg-gray-100 rounded-md">${result.data.tel}</p>
+                                <p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p>
                             </div>
                             <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
                         `;
@@ -183,14 +182,23 @@
             function showEditForm(data) {
                 document.getElementById('profile-display').style.display = 'none';
                 const formDiv = document.getElementById('profile-edit-form');
+                // [MODIFIED] Edit form with all new fields
                 formDiv.innerHTML = `
                     <div class="form-group">
-                        <label for="edit-name">ชื่อ-นามสกุล</label>
-                        <input type="text" id="edit-name" value="${data.name}" required>
+                        <label for="edit-nickname">ชื่อเล่น</label>
+                        <input type="text" id="edit-nickname" value="${data.nickname || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-firstname">ชื่อจริง</label>
+                        <input type="text" id="edit-firstname" value="${data.firstname || ''}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-lastname">นามสกุล</label>
+                        <input type="text" id="edit-lastname" value="${data.lastname || ''}" required>
                     </div>
                     <div class="form-group">
                         <label for="edit-tel">เบอร์โทรศัพท์</label>
-                        <input type="tel" id="edit-tel" value="${data.tel}" required>
+                        <input type="tel" id="edit-tel" value="${data.tel || ''}" required>
                     </div>
                     <button id="save-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">บันทึก</button>
                     <button id="cancel-btn" type="button" class="w-full mt-2 p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold">ยกเลิก</button>
@@ -207,19 +215,22 @@
                 const saveBtn = document.getElementById('save-btn');
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'กำลังบันทึก...';
+                // [MODIFIED] Payload with all new fields
                 const payload = {
                     action: 'updateMemberInfo',
                     userId: userProfile.userId,
-                    name: document.getElementById('edit-name').value,
+                    nickname: document.getElementById('edit-nickname').value,
+                    firstname: document.getElementById('edit-firstname').value,
+                    lastname: document.getElementById('edit-lastname').value,
                     tel: document.getElementById('edit-tel').value
                 };
                 try {
-                    const response = await fetch(MEMBER_SCRIPT_URL, {
+                    await fetch(MEMBER_SCRIPT_URL, {
                         method: 'POST', mode: 'no-cors', body: JSON.stringify(payload)
                     });
                     document.getElementById('profile-edit-form').style.display = 'none';
                     document.getElementById('profile-display').style.display = 'block';
-                    loadProfileInfo(); // Reload the profile info to show the new data
+                    loadProfileInfo();
                 } catch (error) {
                     alert('Failed to save. Please try again.');
                     saveBtn.disabled = false;
@@ -227,7 +238,6 @@
                 }
             }
             
-            // Tab switching logic
             const tabQr = document.getElementById('tab-qr');
             const tabProfile = document.getElementById('tab-profile');
             const viewQr = document.getElementById('qr-code-view');
@@ -244,7 +254,7 @@
                 tabQr.classList.remove('active');
                 viewProfile.style.display = 'block';
                 viewQr.style.display = 'none';
-                loadProfileInfo(); // Load info when tab is clicked
+                loadProfileInfo();
             });
 
             document.getElementById('registration-form').addEventListener('submit', async (e) => {
@@ -252,9 +262,10 @@
                 const submitBtn = document.getElementById('reg-submit-btn');
                 submitBtn.disabled = true;
                 submitBtn.textContent = 'กำลังบันทึก...';
+                // [MODIFIED] Payload for new registration flow
                 const payload = {
                     action: 'registerMember', userId: userProfile.userId, displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl, name: document.getElementById('reg-name').value, tel: document.getElementById('reg-tel').value
+                    pictureUrl: userProfile.pictureUrl, nickname: document.getElementById('reg-nickname').value, tel: document.getElementById('reg-tel').value
                 };
                 try {
                     await fetch(MEMBER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
