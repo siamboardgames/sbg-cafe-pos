@@ -74,7 +74,7 @@
 
     <script>
         // --- CONFIGURATION ---
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqW0HuacgdlSvw_v_F6dny-xwSQ42gBBjxBLYGF00bmzSgA2kULxLGEYFSDLzZ9nuaoA/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwz6GNWTWOBT9uE-y6gaqwveSGxv3byGsGUHq3YHE3qdZZTfHlfGasEKPCOLFISGUeFqw/exec";
 
         // --- STATE ---
         let selectedBranch = null;
@@ -156,7 +156,6 @@
                 const sessionRes = await fetch(`${MASTER_SCRIPT_URL}?action=getActiveSession&userId=${userId}&branch=${selectedBranch}`);
                 const sessionResult = await sessionRes.json();
                 
-                // [DEBUGGING] Log the result from the server to the console
                 console.log("Session check result:", sessionResult);
 
                 if (!sessionResult.success) throw new Error(sessionResult.message);
