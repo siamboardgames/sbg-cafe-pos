@@ -59,7 +59,6 @@
                     </div>
                     <div id="playing-status-view" class="tab-content hidden">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">สถานะการเล่น</h2>
-                        <!-- This part shows when the user IS playing -->
                         <div id="session-active-details" class="text-center space-y-4 hidden">
                             <div>
                                 <p class="text-lg text-gray-500">เวลาที่เล่นไป</p>
@@ -74,7 +73,6 @@
                                 <p id="table-display" class="text-xl font-semibold">-</p>
                             </div>
                         </div>
-                        <!-- This part shows when the user IS NOT playing -->
                         <div id="session-inactive-message" class="text-center p-8 bg-gray-100 rounded-lg hidden">
                             <p class="text-lg font-semibold text-gray-700">เริ่มต้นความสนุก ติดต่อได้ที่พนักงาน</p>
                         </div>
@@ -97,7 +95,8 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXtOJQaauU4Ognz1PvZoMcU7lKHOOtc2MCqovQBXWpd_dyurSSGUhWioD7zsqqp8tkng/exec';
+            // [OPTIMIZED] Using the latest master script URL.
+            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwm5u4BqxfkozHy6TrmEaGrJS0FIcD0bCOz_3NGyj2rFCVT5iDFCG-soIx_lvEg-vow1w/exec';
 
             let userProfile = null;
             let sessionTimer = null;
@@ -108,62 +107,56 @@
                     if (!liff.isLoggedIn()) { liff.login(); return; }
                     userProfile = await liff.getProfile();
                     updateUI(userProfile);
-                    await checkMembershipStatus(userProfile.userId);
+                    // [OPTIMIZED] Call the new single function to get all initial data.
+                    await getUserInitialData(userProfile.userId);
                 } catch (error) { showErrorState(`<b>LIFF Error:</b> ${error.message}.`); }
             }
 
-            async function checkMembershipStatus(userId) {
+            // [OPTIMIZED] This function replaces the two separate check functions.
+            async function getUserInitialData(userId) {
                 const statusElement = document.getElementById('membership-status');
                 try {
                     const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'isMember');
-                    url.searchParams.append('userId', userId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (result.success) {
-                        if (result.isMember) {
-                            statusElement.textContent = 'Active Member';
-                            statusElement.className = 'text-sm font-medium text-green-500';
-                            showMemberApp(userId);
-                            await checkPlayingStatus(userId);
-                        } else {
-                            statusElement.textContent = 'Not a Member';
-                            statusElement.className = 'text-sm font-medium text-yellow-600';
-                            showRegistrationForm();
-                        }
-                    } else { throw new Error(result.message); }
-                } catch (error) {
-                    statusElement.textContent = 'Status Check Failed';
-                    statusElement.className = 'text-sm font-medium text-red-500';
-                }
-            }
-            
-            async function checkPlayingStatus(userId) {
-                const activeDetails = document.getElementById('session-active-details');
-                const inactiveMessage = document.getElementById('session-inactive-message');
-                try {
-                    const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getActiveSession');
+                    url.searchParams.append('action', 'getUserInitialData');
                     url.searchParams.append('userId', userId);
                     const response = await fetch(url);
                     const result = await response.json();
 
-                    if (result.success && result.status === 'found') {
-                        const session = result.data;
+                    if (!result.success) {
+                        throw new Error(result.message || 'Failed to fetch initial data.');
+                    }
+
+                    const data = result.data;
+
+                    // Handle membership status
+                    if (data.isMember) {
+                        statusElement.textContent = 'Active Member';
+                        statusElement.className = 'text-sm font-medium text-green-500';
+                        showMemberApp(userId);
+                    } else {
+                        statusElement.textContent = 'Not a Member';
+                        statusElement.className = 'text-sm font-medium text-yellow-600';
+                        showRegistrationForm();
+                    }
+
+                    // Handle active session status
+                    const activeDetails = document.getElementById('session-active-details');
+                    const inactiveMessage = document.getElementById('session-inactive-message');
+                    if (data.activeSession) {
                         inactiveMessage.style.display = 'none';
                         activeDetails.style.display = 'block';
-                        document.getElementById('branch-display').textContent = session.branch;
-                        document.getElementById('table-display').textContent = session.table;
-                        startTimer(session.checkInTime);
+                        document.getElementById('branch-display').textContent = data.activeSession.branch;
+                        document.getElementById('table-display').textContent = data.activeSession.table;
+                        startTimer(data.activeSession.checkInTime);
                     } else {
                         activeDetails.style.display = 'none';
                         inactiveMessage.style.display = 'block';
                     }
+
                 } catch (error) {
-                    console.error("Could not fetch playing status:", error);
-                    activeDetails.style.display = 'none';
-                    inactiveMessage.style.display = 'block';
-                    inactiveMessage.querySelector('p').textContent = 'ไม่สามารถตรวจสอบสถานะได้';
+                    statusElement.textContent = 'Status Check Failed';
+                    statusElement.className = 'text-sm font-medium text-red-500';
+                    console.error("Error getting initial data:", error);
                 }
             }
 
@@ -201,7 +194,6 @@
                 const memberApp = document.getElementById('member-app-section');
                 memberApp.style.display = 'block';
                 const tabsContainer = document.getElementById('tabs-container');
-                // [MODIFIED] Reordered the tabs and event listeners
                 tabsContainer.innerHTML = `
                     <div id="tab-qr" class="tab-button">QR Code</div>
                     <div id="tab-playing-status" class="tab-button">สถานะ</div>
@@ -211,7 +203,6 @@
                 document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
                 document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
                 
-                // [MODIFIED] Default to QR Code view
                 switchTab('qr-code-view'); 
                 generateQrCode(userId);
             }
