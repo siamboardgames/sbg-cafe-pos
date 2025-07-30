@@ -260,13 +260,26 @@
             e.preventDefault();
             const pin = document.getElementById('staff-pin').value;
             const btn = document.getElementById('login-btn');
-            btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
+            btn.disabled = true;
+            btn.textContent = 'กำลังตรวจสอบ...';
+
+            const loginUrl = new URL(MASTER_SCRIPT_URL);
+            loginUrl.searchParams.append('action', 'staffLogin');
+            loginUrl.searchParams.append('pin', pin);
+
             try {
-                const loginUrl = new URL(MASTER_SCRIPT_URL);
-                loginUrl.searchParams.append('action', 'staffLogin');
-                loginUrl.searchParams.append('pin', pin);
+                console.log("Attempting to login with URL:", loginUrl.href);
                 const response = await fetch(loginUrl);
+                
+                console.log("Response received from script:", response);
+
+                if (!response.ok) {
+                    throw new Error(`Network response was not ok. Status: ${response.status}`);
+                }
+                
                 const result = await response.json();
+                console.log("Parsed JSON result:", result);
+
                 if (result.success) {
                     await loadTickets();
                     hideAllSections();
@@ -279,12 +292,14 @@
                         branchSection.style.display = 'block';
                     }
                 } else {
-                    showStatus(result.message, false);
+                    showStatus(result.message || 'รหัส PIN ไม่ถูกต้อง', false);
                 }
             } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+                console.error("Login failed with error:", error);
+                showStatus(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${error.message}. กรุณาตรวจสอบการตั้งค่าสคริปต์และการเชื่อมต่ออินเทอร์เน็ต`, false);
             } finally {
-                btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+                btn.disabled = false;
+                btn.textContent = 'เข้าสู่ระบบ';
             }
         });
 
