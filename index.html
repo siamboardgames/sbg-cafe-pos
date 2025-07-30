@@ -1,3 +1,14 @@
+### Step 2: Update Your Staff POS App
+
+Now, here is the fully upgraded Staff App. It remembers your branch, handles the check-out flow, and fixes the reset button.
+
+**Your Action:**
+1.  **Deploy the script above** and get the new Web App URL.
+2.  **Update the Canvas below** by pasting your new URL into the `MASTER_SCRIPT_URL` constant.
+3.  **Update your `index.html`** on GitHub with the final code from the Canvas.
+
+
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -18,6 +29,8 @@
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
         button.secondary { background-color: #6c757d; }
         button.secondary:hover { background-color: #5a6268; }
+        button.danger { background-color: #dc3545; }
+        button.danger:hover { background-color: #c82333; }
         #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
         .status-success { background-color: #d4edda; color: #155724; }
         .status-error { background-color: #f8d7da; color: #721c24; }
@@ -67,20 +80,21 @@
         <div id="checkin-section" class="section"></div>
         <div id="checkout-section" class="section"></div>
         
-        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าแรก</button>
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
     </div>
 
     <script>
         // --- CONFIGURATION ---
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwgAq-pMR3Zg3RYQwqOMeQzB35yfSSWmvbxjOXSjI0L_fld7AQ4spEWgm66LvGl6h_zJA/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqW0HuacgdlSvw_v_F6dny-xwSQ42gBBjxBLYGF00bmzSgA2kULxLGEYFSDLzZ9nuaoA/exec";
 
         // --- STATE ---
         let selectedBranch = null;
         let currentUserId = null;
         let html5QrCode = null;
-        let availableTickets = []; // [NEW] To store the fetched tickets
+        let availableTickets = [];
 
         // --- DOM ELEMENTS ---
+        const allSections = document.querySelectorAll('.section');
         const loginSection = document.getElementById('login-section');
         const branchSection = document.getElementById('branch-section');
         const entrySection = document.getElementById('entry-section');
@@ -99,19 +113,14 @@
         }
         
         function hideAllSections() {
-            loginSection.style.display = 'none';
-            branchSection.style.display = 'none';
-            entrySection.style.display = 'none';
-            customerDetailsSection.style.display = 'none';
-            checkinSection.style.display = 'none';
-            checkoutSection.style.display = 'none';
+            allSections.forEach(section => section.style.display = 'none');
             statusMessage.style.display = 'none';
             resetBtn.style.display = 'none';
         }
 
-        function resetToBranchSelect() {
+        function showCustomerSearch() {
             hideAllSections();
-            branchSection.style.display = 'block';
+            entrySection.style.display = 'block';
             resetBtn.style.display = 'block';
             currentUserId = null;
             if (html5QrCode && html5QrCode.isScanning) {
@@ -122,19 +131,15 @@
         function resetToLogin() {
             hideAllSections();
             loginSection.style.display = 'block';
-            document.getElementById('login-form').reset();
+            localStorage.removeItem('selectedBranch');
         }
 
-        // [NEW] Fetches tickets from the Google Sheet
         async function loadTickets() {
             try {
                 const response = await fetch(`${MASTER_SCRIPT_URL}?action=getTickets`);
                 const result = await response.json();
-                if (result.success) {
-                    availableTickets = result.data;
-                } else {
-                    throw new Error(result.message);
-                }
+                if (result.success) availableTickets = result.data;
+                else throw new Error(result.message);
             } catch (error) {
                 showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
             }
@@ -146,61 +151,68 @@
                 return;
             }
             currentUserId = userId;
-            showStatus('กำลังค้นหาข้อมูลลูกค้า...', true);
+            showStatus('กำลังตรวจสอบสถานะลูกค้า...', true);
             
             try {
-                // Use the master script to get member info, not just status
-                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
-                const result = await response.json();
+                const sessionRes = await fetch(`${MASTER_SCRIPT_URL}?action=getActiveSession&userId=${userId}&branch=${selectedBranch}`);
+                const sessionResult = await sessionRes.json();
+                if (!sessionResult.success) throw new Error(sessionResult.message);
 
-                if (!result.success) {
-                    throw new Error(result.message);
-                }
+                const memberRes = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
+                const memberResult = await memberRes.json();
+                if (!memberResult.success) throw new Error(memberResult.message);
 
                 hideAllSections();
                 customerDetailsSection.style.display = 'block';
                 resetBtn.style.display = 'block';
 
-                // Display member details
-                const memberData = result.data;
+                const memberData = memberResult.data;
                 customerDetailsSection.innerHTML = `
                     <h2>ข้อมูลลูกค้า</h2>
                     <div class="info-box">
                         <p><strong>User ID:</strong> ${userId}</p>
                         <p><strong>ชื่อเล่น:</strong> ${memberData.nickname || 'N/A'}</p>
-                        <p><strong>ชื่อจริง:</strong> ${memberData.firstname || 'N/A'}</p>
                     </div>
                 `;
 
-                // Now show the check-in form
-                checkinSection.style.display = 'block';
-                checkinSection.innerHTML = `
-                    <form id="checkin-form">
-                        <div class="form-group">
-                            <label for="table-select">ระบุโต๊ะ</label>
-                            <input type="text" id="table-select" required placeholder="เช่น A1, B2">
+                if (sessionResult.status === 'found') {
+                    // CHECK-OUT FLOW
+                    const sessionData = sessionResult.data;
+                    const checkInTime = new Date(sessionData.checkInTime).toLocaleTimeString('th-TH');
+                    checkoutSection.style.display = 'block';
+                    checkoutSection.innerHTML = `
+                        <h3>ลูกค้ากำลังใช้บริการ</h3>
+                        <div class="info-box">
+                            <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
+                            <p><strong>เวลาเช็คอิน:</strong> ${checkInTime}</p>
+                            <p><strong>โปรโมชั่น:</strong> ${sessionData.ticketName} (${sessionData.price} บาท)</p>
                         </div>
-                        <div class="form-group">
-                            <label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label>
-                            <select id="ticket-select" required>
-                                <option value="">กำลังโหลด...</option>
-                            </select>
-                        </div>
-                        <button type="submit">ยืนยันการ Check-In</button>
-                    </form>
-                `;
-
-                // Populate the ticket dropdown
-                const ticketSelect = document.getElementById('ticket-select');
-                ticketSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>'; // Clear loading text
-                availableTickets.forEach(ticket => {
-                    const option = document.createElement('option');
-                    option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
-                    option.textContent = `${ticket.name} (${ticket.price} บาท)`;
-                    ticketSelect.appendChild(option);
-                });
-
-                document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
+                        <form id="checkout-form" style="margin-top: 1rem;">
+                            <input type="hidden" id="checkout-row-index" value="${sessionData.rowIndex}">
+                            <button type="submit" class="danger">ยืนยันการ Check-Out</button>
+                        </form>
+                    `;
+                    document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
+                } else {
+                    // CHECK-IN FLOW
+                    checkinSection.style.display = 'block';
+                    checkinSection.innerHTML = `
+                        <form id="checkin-form">
+                            <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
+                            <div class="form-group"><label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label><select id="ticket-select" required></select></div>
+                            <button type="submit">ยืนยันการ Check-In</button>
+                        </form>
+                    `;
+                    const ticketSelect = document.getElementById('ticket-select');
+                    ticketSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>';
+                    availableTickets.forEach(ticket => {
+                        const option = document.createElement('option');
+                        option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
+                        option.textContent = `${ticket.name} (${ticket.price} บาท)`;
+                        ticketSelect.appendChild(option);
+                    });
+                    document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
+                }
 
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
@@ -210,80 +222,84 @@
         async function handleCheckInSubmit(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
-            btn.disabled = true;
-            btn.textContent = 'กำลังบันทึก...';
-
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
             const selectedTicketData = JSON.parse(document.getElementById('ticket-select').value);
-
             const payload = {
-                action: 'checkIn',
-                userId: currentUserId,
-                branch: selectedBranch,
+                action: 'checkIn', userId: currentUserId, branch: selectedBranch,
                 table: document.getElementById('table-select').value,
-                ticketName: selectedTicketData.name,
-                price: selectedTicketData.price
+                ticketName: selectedTicketData.name, price: selectedTicketData.price
             };
-
             try {
-                const response = await fetch(MASTER_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify(payload)
-                });
+                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
                 showStatus('เช็คอินสำเร็จ!', true);
-                setTimeout(resetToBranchSelect, 2000);
+                setTimeout(showCustomerSearch, 2000);
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false;
-                btn.textContent = 'ยืนยันการ Check-In';
+                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-In';
             }
         }
-        
-        // --- EVENT LISTENERS ---
+
+        async function handleCheckOutSubmit(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+            const payload = {
+                action: 'checkOut',
+                rowIndex: document.getElementById('checkout-row-index').value
+            };
+            try {
+                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                showStatus('เช็คเอาท์สำเร็จ!', true);
+                setTimeout(showCustomerSearch, 2000);
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-Out';
+            }
+        }
         
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const pin = document.getElementById('staff-pin').value;
             const btn = document.getElementById('login-btn');
-            btn.disabled = true;
-            btn.textContent = 'กำลังตรวจสอบ...';
-
+            btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
             try {
-                // This login logic remains the same (using GET)
                 const loginUrl = new URL(MASTER_SCRIPT_URL);
-                loginUrl.searchParams.append('action', 'staffLogin'); // Assuming you have this action in your master script
+                loginUrl.searchParams.append('action', 'staffLogin');
                 loginUrl.searchParams.append('pin', pin);
                 const response = await fetch(loginUrl);
                 const result = await response.json();
-
                 if (result.success) {
+                    await loadTickets();
                     hideAllSections();
-                    branchSection.style.display = 'block';
-                    resetBtn.style.display = 'block';
-                    await loadTickets(); // [NEW] Load tickets after successful login
+                    const savedBranch = localStorage.getItem('selectedBranch');
+                    if (savedBranch) {
+                        selectedBranch = savedBranch;
+                        document.getElementById('branch-select').value = savedBranch;
+                        showCustomerSearch();
+                    } else {
+                        branchSection.style.display = 'block';
+                    }
                 } else {
                     showStatus(result.message, false);
                 }
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
             } finally {
-                btn.disabled = false;
-                btn.textContent = 'เข้าสู่ระบบ';
+                btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
             }
         });
 
         document.getElementById('branch-select').addEventListener('change', () => {
             selectedBranch = document.getElementById('branch-select').value;
             if (selectedBranch) {
-                entrySection.style.display = 'block';
-            } else {
-                entrySection.style.display = 'none';
+                localStorage.setItem('selectedBranch', selectedBranch);
+                showCustomerSearch();
             }
         });
 
         document.getElementById('start-scan-btn').addEventListener('click', () => {
             html5QrCode = new Html5Qrcode("qr-reader");
-            const onScanSuccess = (decodedText, decodedResult) => {
+            const onScanSuccess = (decodedText) => {
                 if (html5QrCode.isScanning) {
                     html5QrCode.stop().then(() => processUserId(decodedText));
                 }
@@ -298,11 +314,9 @@
             if (userId) processUserId(userId);
         });
 
-        resetBtn.addEventListener('click', resetToBranchSelect);
+        resetBtn.addEventListener('click', showCustomerSearch);
         
-        // --- INITIALIZATION ---
         resetToLogin();
-
     </script>
 </body>
 </html>
