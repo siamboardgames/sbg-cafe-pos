@@ -48,7 +48,7 @@
                     <!-- Tabs will be dynamically added here -->
                 </div>
                 <div class="p-6">
-                    <div id="qr-code-view" class="tab-content">
+                    <div id="qr-code-view" class="tab-content hidden">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
                         <div id="qr-code-container" class="w-full max-w-xs mx-auto aspect-square p-4 bg-white rounded-lg flex items-center justify-center border"></div>
                     </div>
@@ -59,7 +59,8 @@
                     </div>
                     <div id="playing-status-view" class="tab-content hidden">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">สถานะการเล่น</h2>
-                        <div class="text-center space-y-4">
+                        <!-- This part shows when the user IS playing -->
+                        <div id="session-active-details" class="text-center space-y-4 hidden">
                             <div>
                                 <p class="text-lg text-gray-500">เวลาที่เล่นไป</p>
                                 <p id="timer-display" class="text-5xl font-bold text-blue-600">00:00:00</p>
@@ -72,6 +73,10 @@
                                 <p class="text-sm text-gray-500">โต๊ะ</p>
                                 <p id="table-display" class="text-xl font-semibold">-</p>
                             </div>
+                        </div>
+                        <!-- This part shows when the user IS NOT playing -->
+                        <div id="session-inactive-message" class="text-center p-8 bg-gray-100 rounded-lg hidden">
+                            <p class="text-lg font-semibold text-gray-700">เริ่มต้นความสนุก ติดต่อได้ที่พนักงาน</p>
                         </div>
                     </div>
                 </div>
@@ -92,7 +97,6 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            // [FIXED] Using the latest master script URL provided by the user.
             const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXtOJQaauU4Ognz1PvZoMcU7lKHOOtc2MCqovQBXWpd_dyurSSGUhWioD7zsqqp8tkng/exec';
 
             let userProfile = null;
@@ -135,6 +139,8 @@
             }
             
             async function checkPlayingStatus(userId) {
+                const activeDetails = document.getElementById('session-active-details');
+                const inactiveMessage = document.getElementById('session-inactive-message');
                 try {
                     const url = new URL(MASTER_SCRIPT_URL);
                     url.searchParams.append('action', 'getActiveSession');
@@ -144,13 +150,20 @@
 
                     if (result.success && result.status === 'found') {
                         const session = result.data;
-                        addStatusTab();
+                        inactiveMessage.style.display = 'none';
+                        activeDetails.style.display = 'block';
                         document.getElementById('branch-display').textContent = session.branch;
                         document.getElementById('table-display').textContent = session.table;
                         startTimer(session.checkInTime);
+                    } else {
+                        activeDetails.style.display = 'none';
+                        inactiveMessage.style.display = 'block';
                     }
                 } catch (error) {
                     console.error("Could not fetch playing status:", error);
+                    activeDetails.style.display = 'none';
+                    inactiveMessage.style.display = 'block';
+                    inactiveMessage.querySelector('p').textContent = 'ไม่สามารถตรวจสอบสถานะได้';
                 }
             }
 
@@ -161,11 +174,9 @@
                 sessionTimer = setInterval(() => {
                     const now = new Date().getTime();
                     const distance = now - startTime;
-                    
                     const hours = Math.floor(distance / (1000 * 60 * 60));
                     const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                     const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                    
                     document.getElementById('timer-display').textContent = 
                         ('0' + hours).slice(-2) + ":" + 
                         ('0' + minutes).slice(-2) + ":" + 
@@ -173,29 +184,13 @@
                 }, 1000);
             }
 
-            function addStatusTab() {
-                const tabsContainer = document.getElementById('tabs-container');
-                if (document.getElementById('tab-status')) return;
-
-                const statusTab = document.createElement('div');
-                statusTab.id = 'tab-status';
-                statusTab.className = 'tab-button';
-                statusTab.textContent = 'สถานะ';
-                tabsContainer.appendChild(statusTab);
-
-                statusTab.addEventListener('click', () => switchTab('playing-status-view'));
-            }
-
             function switchTab(activeTabId) {
                 document.querySelectorAll('.tab-button').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-
                 const newActiveTab = document.getElementById(`tab-${activeTabId.replace('-view', '')}`);
                 if (newActiveTab) newActiveTab.classList.add('active');
-                
                 const newActiveView = document.getElementById(activeTabId);
                 if (newActiveView) newActiveView.style.display = 'block';
-
                 if (activeTabId === 'profile-info-view') {
                     loadProfileInfo();
                 }
@@ -207,39 +202,38 @@
                 memberApp.style.display = 'block';
                 const tabsContainer = document.getElementById('tabs-container');
                 tabsContainer.innerHTML = `
+                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
                     <div id="tab-qr" class="tab-button">QR Code</div>
                     <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
                 `;
+                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
                 document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
                 document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
                 
-                switchTab('qr-code-view');
-                generateQrCode(userId);
+                switchTab('playing-status-view'); // Default to Status view
+                generateQrCode(userId); // Generate QR code in the background
             }
 
+            // --- The rest of your existing JavaScript functions ---
             function showRegistrationForm() {
                 document.getElementById('member-app-section').style.display = 'none';
                 document.getElementById('registration-section').style.display = 'block';
             }
-
             function updateUI(profile) {
                 document.getElementById('loading-state').style.display = 'none';
                 document.getElementById('main-content').style.display = 'block';
                 if (profile.pictureUrl) document.getElementById('user-picture').src = profile.pictureUrl;
                 document.getElementById('user-name').textContent = profile.displayName;
             }
-
             function generateQrCode(userId) {
                 const qrContainer = document.getElementById('qr-code-container');
                 qrContainer.innerHTML = '';
                 try { new QRCode(qrContainer, { text: userId, width: 256, height: 256 }); }
                 catch (error) { showErrorState('Could not generate the QR code.'); }
             }
-
             async function loadProfileInfo() {
                 const displayDiv = document.getElementById('profile-display');
                 displayDiv.innerHTML = '<p>Loading info...</p>';
-                // This function body was missing, it's now restored.
                 try {
                     const url = new URL(MASTER_SCRIPT_URL);
                     url.searchParams.append('action', 'getMemberInfo');
@@ -258,9 +252,7 @@
                     } else { throw new Error(result.message); }
                 } catch (error) { displayDiv.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`; }
             }
-
             function showEditForm(data) {
-                // This function body was missing, it's now restored.
                 document.getElementById('profile-display').style.display = 'none';
                 const formDiv = document.getElementById('profile-edit-form');
                 formDiv.innerHTML = `
@@ -278,9 +270,7 @@
                     document.getElementById('profile-display').style.display = 'block';
                 });
             }
-
             async function handleSaveInfo() {
-                // This function body was missing, it's now restored.
                 const saveBtn = document.getElementById('save-btn');
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'กำลังบันทึก...';
@@ -303,9 +293,7 @@
                     saveBtn.textContent = 'บันทึก';
                 }
             }
-            
             document.getElementById('registration-form').addEventListener('submit', async (e) => {
-                // This function body was missing, it's now restored.
                 e.preventDefault();
                 const submitBtn = document.getElementById('reg-submit-btn');
                 submitBtn.disabled = true;
@@ -325,7 +313,6 @@
                     submitBtn.textContent = 'ลงทะเบียน';
                 }
             });
-
             function showErrorState(message) {
                 document.getElementById('loading-state').style.display = 'none';
                 const errorState = document.getElementById('error-state');
