@@ -1,325 +1,231 @@
-<!DOCTYPE html>
-<html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการร้านค้า (POS)</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
-        .container { width: 100%; max-width: 600px; margin: 1rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-        h1, h2 { text-align: center; color: #1a202c; }
-        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-        button:hover { background-color: #0056b3; }
-        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        button.secondary { background-color: #6c757d; }
-        button.secondary:hover { background-color: #5a6268; }
-        button.danger { background-color: #dc3545; }
-        button.danger:hover { background-color: #c82333; }
-        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
-        .status-success { background-color: #d4edda; color: #155724; }
-        .status-error { background-color: #f8d7da; color: #721c24; }
-        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
-        #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
-    </style>
-</head>
-<body>
+// --- CONFIGURATION ---
+const SPREADSHEET_ID = '1ryCCn_gAHPr6UTP80F4BGh0sfSvDw1rfADn1gEPhE5E';
+const MEMBERS_SHEET_NAME = 'Members';
+const CHECKIN_SHEET_NAME = 'CheckInData';
+const TICKET_SHEET_NAME = 'Ticket';
+const STAFF_SHEET_NAME = 'Staff';
 
-    <div class="container">
-        <h1>ระบบจัดการร้านค้า</h1>
+// --- COLUMN CONSTANTS ---
+const MEMBERS_COLS = { USER_ID: 1, FIRST_NAME: 6, LAST_NAME: 7, NICKNAME: 8, BIRTHDATE: 9, GENDER: 10, PHONE: 12 };
+const CHECKIN_COLS = { USER_ID: 2, BRANCH: 3, TABLE: 4, STATUS: 5, CHECKIN_TIME: 6, CHECKOUT_TIME: 7, DURATION: 8, TICKET_NAME: 9, PRICE: 10 };
+const TICKET_COLS = { NAME: 1, PRICE: 2, DESCRIPTION: 3 };
+
+
+// --- MAIN ROUTERS ---
+
+function doGet(e) {
+  try {
+    const action = e.parameter.action;
+    const userId = e.parameter.userId;
+
+    switch (action) {
+      case 'staffLogin':
+        return handleStaffLogin({ pin: e.parameter.pin });
+      case 'isMember':
+        return createJsonResponse({ success: true, isMember: checkMembership(userId) });
+      case 'getMemberInfo':
+        return handleGetMemberInfo(userId);
+      case 'getActiveSession': // Used by both Customer and Staff app now
+        return handleGetActiveSession(userId, e.parameter.branch);
+      case 'getTickets':
+        return handleGetTickets();
+      default:
+        return createJsonResponse({ success: false, message: 'Invalid GET action.' });
+    }
+  } catch (error) {
+    console.error("doGet Error: " + error.toString());
+    return createJsonResponse({ success: false, message: 'An error occurred on the server: ' + error.message });
+  }
+}
+
+function doPost(e) {
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const action = payload.action;
+
+    switch (action) {
+      case 'registerMember':
+        return handleRegistration(payload);
+      case 'updateMemberInfo':
+        return handleUpdateMember(payload);
+      case 'checkIn':
+        return handleCheckIn(payload);
+      case 'checkOut':
+        return handleCheckOut(payload);
+      default:
+        return createJsonResponse({ success: false, message: 'Invalid POST action.' });
+    }
+  } catch (error) {
+    console.error("doPost Error: " + error.toString());
+    return createJsonResponse({ success: false, message: 'An error occurred during the request: ' + error.message });
+  }
+}
+
+
+// --- ACTION HANDLERS ---
+
+function handleStaffLogin(payload) {
+    const pin = payload.pin;
+    if (!pin) return createJsonResponse({ success: false, message: 'PIN is required.' });
+    const staffSheet = getSheet(STAFF_SHEET_NAME);
+    const data = staffSheet.getRange("B2:B").getValues();
+    const pins = data.flat().filter(val => val !== '').map(String);
+    if (pins.includes(pin)) {
+        return createJsonResponse({ success: true, message: 'Login successful!' });
+    }
+    return createJsonResponse({ success: false, message: 'Invalid PIN.' });
+}
+
+function handleGetMemberInfo(userId) {
+    const memberInfo = getMemberDetails(userId);
+    if (memberInfo) return createJsonResponse({ success: true, data: memberInfo });
+    return createJsonResponse({ success: false, message: 'Member not found.' });
+}
+
+function handleGetActiveSession(userId, branch) {
+    const sessionInfo = getActiveSessionDetails(userId, branch);
+    if (sessionInfo) {
+        return createJsonResponse({ success: true, status: 'found', data: sessionInfo });
+    }
+    return createJsonResponse({ success: true, status: 'not_found' });
+}
+
+function handleGetTickets() {
+    const sheet = getSheet(TICKET_SHEET_NAME);
+    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, sheet.getLastColumn()).getValues();
+    const tickets = data.map(row => ({
+        name: row[TICKET_COLS.NAME - 1], price: row[TICKET_COLS.PRICE - 1], description: row[TICKET_COLS.DESCRIPTION - 1]
+    }));
+    return createJsonResponse({ success: true, data: tickets });
+}
+
+function handleRegistration(payload) {
+    const sheet = getSheet(MEMBERS_SHEET_NAME);
+    const newRow = [
+      payload.userId, payload.displayName, payload.pictureUrl, new Date(), new Date(),
+      '', '', payload.nickname, '', '', payload.userId, "'" + payload.tel
+    ];
+    sheet.appendRow(newRow);
+    return createJsonResponse({ success: true, message: 'Registration successful!' });
+}
+
+function handleUpdateMember(payload) {
+    const sheet = getSheet(MEMBERS_SHEET_NAME);
+    const userIds = sheet.getRange("A:A").getValues().flat();
+    const rowIndex = userIds.indexOf(payload.userId);
+    if (rowIndex === -1) return createJsonResponse({ success: false, message: 'User to update not found.' });
+    const rowToUpdate = rowIndex + 1;
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.FIRST_NAME).setValue(payload.firstname);
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.LAST_NAME).setValue(payload.lastname);
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.NICKNAME).setValue(payload.nickname);
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.BIRTHDATE).setValue(payload.birthdate);
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.GENDER).setValue(payload.gender);
+    sheet.getRange(rowToUpdate, MEMBERS_COLS.PHONE).setValue("'" + payload.tel);
+    sheet.getRange(rowToUpdate, 5).setValue(new Date());
+    return createJsonResponse({ success: true, message: 'Information updated successfully!' });
+}
+
+function handleCheckIn(payload) {
+    const sheet = getSheet(CHECKIN_SHEET_NAME);
+    const newRow = [
+        new Date(), // Timestamp
+        payload.userId, payload.branch, payload.table, 'Checked-In', new Date(),
+        null, null, payload.ticketName, payload.price
+    ];
+    sheet.appendRow(newRow);
+    return createJsonResponse({ success: true, message: 'Check-in successful!' });
+}
+
+function handleCheckOut(payload) {
+    const sheet = getSheet(CHECKIN_SHEET_NAME);
+    const rowToUpdate = payload.rowIndex;
+    if (!rowToUpdate) return createJsonResponse({ success: false, message: 'Row index not provided for checkout.' });
+
+    const checkInTime = new Date(sheet.getRange(rowToUpdate, CHECKIN_COLS.CHECKIN_TIME).getValue());
+    const checkOutTime = new Date();
+    const duration = Math.round((checkOutTime - checkInTime) / (1000 * 60)); // Duration in minutes
+
+    sheet.getRange(rowToUpdate, CHECKIN_COLS.STATUS).setValue('Checked-Out');
+    sheet.getRange(rowToUpdate, CHECKIN_COLS.CHECKOUT_TIME).setValue(checkOutTime);
+    sheet.getRange(rowToUpdate, CHECKIN_COLS.DURATION).setValue(duration);
+    
+    return createJsonResponse({ success: true, message: 'Checkout successful!' });
+}
+
+
+// --- HELPER FUNCTIONS ---
+
+function getActiveSessionDetails(userId, branch) {
+    const sheet = getSheet(CHECKIN_SHEET_NAME);
+    const data = sheet.getDataRange().getValues();
+    for (let i = data.length - 1; i >= 1; i--) {
+        const row = data[i];
+        // [FIX] Trim all string values to remove accidental whitespace before comparing
+        const rowUserId = (row[CHECKIN_COLS.USER_ID - 1] || '').toString().trim();
+        const rowBranch = (row[CHECKIN_COLS.BRANCH - 1] || '').toString().trim();
+        const rowStatus = (row[CHECKIN_COLS.STATUS - 1] || '').toString().trim();
         
-        <div id="login-section">
-            <h2>พนักงานเข้าสู่ระบบ</h2>
-            <form id="login-form">
-                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" pattern="[0-9]*" placeholder="****" required></div>
-                <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
-            </form>
-        </div>
+        const branchMatch = branch ? rowBranch === branch.trim() : true;
 
-        <div id="branch-section" class="section">
-            <h2>กรุณาเลือกสาขา</h2>
-            <div class="form-group"><label for="branch-select">สาขา</label>
-                <select id="branch-select">
-                    <option value="">-- เลือกสาขา --</option>
-                    <option value="Bangna">Bangna</option>
-                    <option value="Ngamwongwan">Ngamwongwan</option>
-                    <option value="WestGate">WestGate</option>
-                    <option value="EastVille">EastVille</option>
-                </select>
-            </div>
-        </div>
-
-        <div id="entry-section" class="section">
-            <h2>ค้นหาลูกค้า</h2>
-            <div id="qr-reader" style="width:100%;"></div>
-            <button id="start-scan-btn">สแกน QR Code</button>
-            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
-            <form id="manual-entry-form">
-                <div class="form-group"><label for="manual-userid">กรอก User ID</label><input type="text" id="manual-userid" placeholder="U12345..."></div>
-                <button type="submit">ค้นหาลูกค้า</button>
-            </form>
-        </div>
-
-        <div id="status-message"></div>
-        <div id="customer-details-section" class="section"></div>
-        <div id="checkin-section" class="section"></div>
-        <div id="checkout-section" class="section"></div>
-        
-        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
-    </div>
-
-    <script>
-        // --- CONFIGURATION ---
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzqW0HuacgdlSvw_v_F6dny-xwSQ42gBBjxBLYGF00bmzSgA2kULxLGEYFSDLzZ9nuaoA/exec";
-
-        // --- STATE ---
-        let selectedBranch = null;
-        let currentUserId = null;
-        let html5QrCode = null;
-        let availableTickets = [];
-
-        // --- DOM ELEMENTS ---
-        const allSections = document.querySelectorAll('.section');
-        const loginSection = document.getElementById('login-section');
-        const branchSection = document.getElementById('branch-section');
-        const entrySection = document.getElementById('entry-section');
-        const statusMessage = document.getElementById('status-message');
-        const customerDetailsSection = document.getElementById('customer-details-section');
-        const checkinSection = document.getElementById('checkin-section');
-        const checkoutSection = document.getElementById('checkout-section');
-        const resetBtn = document.getElementById('reset-btn');
-
-        // --- FUNCTIONS ---
-
-        function showStatus(message, isSuccess) {
-            statusMessage.textContent = message;
-            statusMessage.className = isSuccess ? 'status-success' : 'status-error';
-            statusMessage.style.display = 'block';
-        }
-        
-        function hideAllSections() {
-            loginSection.style.display = 'none';
-            allSections.forEach(section => section.style.display = 'none');
-            statusMessage.style.display = 'none';
-            resetBtn.style.display = 'none';
-        }
-
-        function showCustomerSearch() {
-            hideAllSections();
-            entrySection.style.display = 'block';
-            resetBtn.style.display = 'block';
-            currentUserId = null;
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
-            }
-        }
-
-        function resetToLogin() {
-            hideAllSections();
-            loginSection.style.display = 'block';
-            localStorage.removeItem('selectedBranch');
-        }
-
-        async function loadTickets() {
-            try {
-                const response = await fetch(`${MASTER_SCRIPT_URL}?action=getTickets`);
-                const result = await response.json();
-                if (result.success) availableTickets = result.data;
-                else throw new Error(result.message);
-            } catch (error) {
-                showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
-            }
-        }
-        
-        function calculateDuration(startTime) {
-            const start = new Date(startTime).getTime();
-            const now = new Date().getTime();
-            const diff = now - start;
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            return `${hours} ชั่วโมง ${minutes} นาที`;
-        }
-
-        async function processUserId(userId) {
-            if (!selectedBranch) {
-                showStatus('กรุณาเลือกสาขาก่อน', false);
-                return;
-            }
-            currentUserId = userId;
-            showStatus('กำลังตรวจสอบสถานะลูกค้า...', true);
-            
-            try {
-                const sessionRes = await fetch(`${MASTER_SCRIPT_URL}?action=getActiveSession&userId=${userId}&branch=${selectedBranch}`);
-                const sessionResult = await sessionRes.json();
-                
-                // [DEBUGGING] Log the result from the server to the console
-                console.log("Session check result:", sessionResult);
-
-                if (!sessionResult.success) throw new Error(sessionResult.message);
-
-                const memberRes = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
-                const memberResult = await memberRes.json();
-                if (!memberResult.success) throw new Error(memberResult.message);
-
-                hideAllSections();
-                customerDetailsSection.style.display = 'block';
-                resetBtn.style.display = 'block';
-
-                const memberData = memberResult.data;
-                customerDetailsSection.innerHTML = `
-                    <h2>ข้อมูลลูกค้า</h2>
-                    <div class="info-box">
-                        <p><strong>User ID:</strong> ${userId}</p>
-                        <p><strong>ชื่อเล่น:</strong> ${memberData.nickname || 'N/A'}</p>
-                    </div>
-                `;
-
-                if (sessionResult.status === 'found') {
-                    // CHECK-OUT FLOW
-                    const sessionData = sessionResult.data;
-                    const timePlayed = calculateDuration(sessionData.checkInTime);
-                    checkoutSection.style.display = 'block';
-                    checkoutSection.innerHTML = `
-                        <h3>ลูกค้ากำลังใช้บริการ</h3>
-                        <div class="info-box">
-                            <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
-                            <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
-                            <p><strong>โปรโมชั่น:</strong> ${sessionData.ticketName} (${sessionData.price} บาท)</p>
-                        </div>
-                        <form id="checkout-form" style="margin-top: 1rem;">
-                            <input type="hidden" id="checkout-row-index" value="${sessionData.rowIndex}">
-                            <button type="submit" class="danger">ยืนยันการ Check-Out</button>
-                        </form>
-                    `;
-                    document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
-                } else {
-                    // CHECK-IN FLOW
-                    checkinSection.style.display = 'block';
-                    checkinSection.innerHTML = `
-                        <form id="checkin-form">
-                            <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
-                            <div class="form-group"><label for="ticket-select">เลือกโปรโมชั่น/ตั๋ว</label><select id="ticket-select" required></select></div>
-                            <button type="submit">ยืนยันการ Check-In</button>
-                        </form>
-                    `;
-                    const ticketSelect = document.getElementById('ticket-select');
-                    ticketSelect.innerHTML = '<option value="">-- เลือกรายการ --</option>';
-                    availableTickets.forEach(ticket => {
-                        const option = document.createElement('option');
-                        option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
-                        option.textContent = `${ticket.name} (${ticket.price} บาท)`;
-                        ticketSelect.appendChild(option);
-                    });
-                    document.getElementById('checkin-form').addEventListener('submit', handleCheckInSubmit);
-                }
-
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-            }
-        }
-        
-        async function handleCheckInSubmit(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-            const selectedTicketData = JSON.parse(document.getElementById('ticket-select').value);
-            const payload = {
-                action: 'checkIn', userId: currentUserId, branch: selectedBranch,
-                table: document.getElementById('table-select').value,
-                ticketName: selectedTicketData.name, price: selectedTicketData.price
+        if (rowUserId === userId.trim() && branchMatch && rowStatus === 'Checked-In') {
+            return {
+                rowIndex: i + 1, // Return the actual row number for updates
+                branch: rowBranch,
+                table: row[CHECKIN_COLS.TABLE - 1],
+                checkInTime: row[CHECKIN_COLS.CHECKIN_TIME - 1],
+                ticketName: row[CHECKIN_COLS.TICKET_NAME - 1],
+                price: row[CHECKIN_COLS.PRICE - 1]
             };
-            try {
-                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                showStatus('เช็คอินสำเร็จ!', true);
-                setTimeout(showCustomerSearch, 2000);
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-In';
-            }
         }
+    }
+    return null;
+}
 
-        async function handleCheckOutSubmit(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-            const payload = {
-                action: 'checkOut',
-                rowIndex: document.getElementById('checkout-row-index').value
-            };
-            try {
-                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                showStatus('เช็คเอาท์สำเร็จ!', true);
-                setTimeout(showCustomerSearch, 2000);
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-Out';
-            }
-        }
-        
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const pin = document.getElementById('staff-pin').value;
-            const btn = document.getElementById('login-btn');
-            btn.disabled = true; btn.textContent = 'กำลังตรวจสอบ...';
-            try {
-                const loginUrl = new URL(MASTER_SCRIPT_URL);
-                loginUrl.searchParams.append('action', 'staffLogin');
-                loginUrl.searchParams.append('pin', pin);
-                const response = await fetch(loginUrl);
-                const result = await response.json();
-                if (result.success) {
-                    await loadTickets();
-                    hideAllSections();
-                    const savedBranch = localStorage.getItem('selectedBranch');
-                    if (savedBranch) {
-                        selectedBranch = savedBranch;
-                        document.getElementById('branch-select').value = savedBranch;
-                        showCustomerSearch();
-                    } else {
-                        branchSection.style.display = 'block';
-                    }
-                } else {
-                    showStatus(result.message, false);
-                }
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-            } finally {
-                btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
-            }
-        });
+function getMemberDetails(userId) {
+  const sheet = getSheet(MEMBERS_SHEET_NAME);
+  const userIds = sheet.getRange("A:A").getValues().flat();
+  const rowIndex = userIds.indexOf(userId);
+  if (rowIndex === -1) return null;
+  
+  const rowToGet = rowIndex + 1;
+  const rowData = sheet.getRange(rowToGet, 1, 1, sheet.getLastColumn()).getValues()[0];
+  let birthdate = rowData[MEMBERS_COLS.BIRTHDATE - 1];
+  if (birthdate instanceof Date) {
+      birthdate = Utilities.formatDate(birthdate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+  }
+  return {
+      firstname: rowData[MEMBERS_COLS.FIRST_NAME - 1], lastname: rowData[MEMBERS_COLS.LAST_NAME - 1],
+      nickname: rowData[MEMBERS_COLS.NICKNAME - 1], birthdate: birthdate,
+      gender: rowData[MEMBERS_COLS.GENDER - 1], tel: rowData[MEMBERS_COLS.PHONE - 1]
+  };
+}
 
-        document.getElementById('branch-select').addEventListener('change', () => {
-            selectedBranch = document.getElementById('branch-select').value;
-            if (selectedBranch) {
-                localStorage.setItem('selectedBranch', selectedBranch);
-                showCustomerSearch();
-            }
-        });
+function checkMembership(userId) {
+  try {
+    const sheet = getSheet(MEMBERS_SHEET_NAME);
+    const userIds = sheet.getRange("A:A").getValues().flat();
+    return userIds.includes(userId);
+  } catch (error) { return false; }
+}
 
-        document.getElementById('start-scan-btn').addEventListener('click', () => {
-            html5QrCode = new Html5Qrcode("qr-reader");
-            const onScanSuccess = (decodedText) => {
-                if (html5QrCode.isScanning) {
-                    html5QrCode.stop().then(() => processUserId(decodedText));
-                }
-            };
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, onScanSuccess)
-                .catch(err => console.error("QR scanner failed to start.", err));
-        });
-        
-        document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const userId = document.getElementById('manual-userid').value;
-            if (userId) processUserId(userId);
-        });
+function getSheet(sheetName) {
+  const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = spreadsheet.getSheetByName(sheetName);
+  if (!sheet) {
+      sheet = spreadsheet.insertSheet(sheetName);
+      if (sheetName === MEMBERS_SHEET_NAME) {
+          sheet.appendRow(['UserID', 'DisplayName', 'PictureURL', 'FirstSeen', 'LastUpdated', 'FirstName', 'LastName', 'NickName', 'Birthdate', 'Gender', 'LineID', 'PhoneNumber']);
+      } else if (sheetName === CHECKIN_SHEET_NAME) {
+          sheet.appendRow(['Timestamp', 'UserID', 'Branch', 'Table', 'Status', 'CheckInTime', 'CheckOutTime', 'DurationMinutes', 'TicketName', 'Price']);
+      } else if (sheetName === TICKET_SHEET_NAME) {
+          sheet.appendRow(['TicketName', 'Price', 'Description']);
+      } else if (sheetName === STAFF_SHEET_NAME) {
+          sheet.appendRow(['StaffName', 'PIN']);
+      }
+  }
+  return sheet;
+}
 
-        resetBtn.addEventListener('click', showCustomerSearch);
-        
-        resetToLogin();
-    </script>
-</body>
-</html>
+function createJsonResponse(data) {
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
