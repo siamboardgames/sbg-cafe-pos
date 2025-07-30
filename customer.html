@@ -7,18 +7,20 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- LIFF SDK -->
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <!-- QR Code Generation Library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator/qrcode.js"></script>
+    <!-- [UPDATED] Using a more reliable QR Code Generation Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
         /* Custom font and QR code canvas styling */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap');
         body {
             font-family: 'Inter', sans-serif;
         }
-        #qr-code-container canvas {
+        /* Styling for the new QR code library */
+        #qr-code-container img {
             width: 100% !important;
             height: auto !important;
             border-radius: 0.75rem; /* 12px */
+            margin: auto; /* Center the image */
         }
     </style>
 </head>
@@ -50,16 +52,17 @@
         <div class="flex items-center bg-gray-100 dark:bg-gray-700 p-4 rounded-xl mb-6">
             <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white dark:border-gray-600 shadow-md">
             <div class="ml-4">
-                <p class="text-sm text-gray-600 dark:text-gray-400">Member</p>
                 <p id="user-name" class="font-bold text-lg text-gray-900 dark:text-white">Loading...</p>
+                <!-- Membership status will be displayed here -->
+                <p id="membership-status" class="text-sm font-medium text-gray-600 dark:text-gray-300">Checking status...</p>
             </div>
         </div>
 
         <!-- QR Code Section -->
         <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
             <h2 class="text-center font-semibold text-gray-700 dark:text-gray-300 mb-4">Show this QR code to the cashier</h2>
-            <div id="qr-code-container" class="w-full aspect-square p-4 bg-white rounded-lg">
-                <!-- QR Code will be generated here by the script -->
+            <div id="qr-code-container" class="w-full aspect-square p-4 bg-white rounded-lg flex items-center justify-center">
+                <!-- QR Code will be generated here by the new script -->
             </div>
         </div>
 
@@ -72,60 +75,83 @@
         document.addEventListener('DOMContentLoaded', function () {
             // --- CONFIGURATION ---
             const liffId = '2007836924-1X8GmJKj';
+            const MEMBER_CHECK_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxuNUIN_OyYsEiy5FtBY6m3T-EZDveG81Ghxa8NHpBCL8mHbWJeLlzOikPnzzEBdVyT0g/exec';
 
             // --- Main App Logic ---
             async function main() {
                 try {
-                    // Initialize LIFF
                     await liff.init({ liffId: liffId });
 
-                    // Check if user is logged in. If not, LIFF will redirect them to the login page.
                     if (!liff.isLoggedIn()) {
                         liff.login();
-                        return; // Stop execution until the user is logged in and the page reloads.
+                        return;
                     }
 
-                    // Get user profile
                     const profile = await liff.getProfile();
                     
-                    // Generate QR Code with the User ID
+                    checkMembershipStatus(profile.userId);
                     generateQrCode(profile.userId);
-
-                    // Update UI with user info
                     updateUI(profile);
 
                 } catch (error) {
                     console.error('LIFF Initialization Error:', error);
-                    showErrorState(`<b>LIFF Error:</b> ${error.message}.<br><br>Please ensure your LIFF ID is correct and the app is opened from within LINE.`);
+                    showErrorState(`<b>LIFF Error:</b> ${error.message}.`);
                 }
             }
 
-            // --- UI Update Functions ---
+            async function checkMembershipStatus(userId) {
+                const statusElement = document.getElementById('membership-status');
+                try {
+                    const url = new URL(MEMBER_CHECK_SCRIPT_URL);
+                    url.searchParams.append('action', 'isMember');
+                    url.searchParams.append('userId', userId);
+
+                    const response = await fetch(url);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        if (result.isMember) {
+                            statusElement.textContent = 'Active Member';
+                            statusElement.className = 'text-sm font-medium text-green-500 dark:text-green-400';
+                        } else {
+                            statusElement.textContent = 'Not a Member';
+                            statusElement.className = 'text-sm font-medium text-yellow-600 dark:text-yellow-400';
+                        }
+                    } else {
+                        throw new Error(result.message || 'Unknown error');
+                    }
+                } catch (error) {
+                    console.error('Membership Check Error:', error);
+                    statusElement.textContent = 'Status Check Failed';
+                    statusElement.className = 'text-sm font-medium text-red-500 dark:text-red-400';
+                }
+            }
+
             function updateUI(profile) {
-                // Hide loading state, show main content
                 document.getElementById('loading-state').classList.add('hidden');
                 document.getElementById('main-content').classList.remove('hidden');
 
-                // Set user profile picture
                 const userPicture = document.getElementById('user-picture');
                 if (profile.pictureUrl) {
                     userPicture.src = profile.pictureUrl;
                 }
                 
-                // Set user display name
                 document.getElementById('user-name').textContent = profile.displayName;
             }
 
+            // --- [UPDATED] Function to generate QR code with the new library ---
             function generateQrCode(userId) {
+                const qrCodeContainer = document.getElementById('qr-code-container');
+                qrCodeContainer.innerHTML = ''; // Clear previous QR code if any
                 try {
-                    // Create a new QR code instance
-                    const qr = qrcode(0, 'M'); // typeNumber 0 = auto, errorCorrectionLevel 'M'
-                    qr.addData(userId);
-                    qr.make();
-                    
-                    // Render the QR code as an HTML element (canvas)
-                    const qrCodeContainer = document.getElementById('qr-code-container');
-                    qrCodeContainer.innerHTML = qr.createCanvasTag(10, 4); // cellSize=10, margin=4
+                    new QRCode(qrCodeContainer, {
+                        text: userId,
+                        width: 256,
+                        height: 256,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
                 } catch (error) {
                     console.error('QR Code Generation Error:', error);
                     showErrorState('Could not generate the QR code.');
@@ -139,7 +165,7 @@
                 const errorState = document.getElementById('error-state');
                 const errorMessage = document.getElementById('error-message');
                 
-                errorMessage.innerHTML = message; // Use innerHTML to allow for bold tags
+                errorMessage.innerHTML = message;
                 errorState.classList.remove('hidden');
             }
 
