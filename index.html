@@ -155,6 +155,10 @@
             try {
                 const sessionRes = await fetch(`${MASTER_SCRIPT_URL}?action=getActiveSession&userId=${userId}&branch=${selectedBranch}`);
                 const sessionResult = await sessionRes.json();
+                
+                // [DEBUGGING] Log the result from the server to the console
+                console.log("Session check result:", sessionResult);
+
                 if (!sessionResult.success) throw new Error(sessionResult.message);
 
                 const memberRes = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
