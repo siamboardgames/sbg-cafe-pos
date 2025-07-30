@@ -49,7 +49,6 @@
                     <div id="qr-code-view" class="tab-content hidden">
                         <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
                         <div id="qr-code-container" class="w-full max-w-xs mx-auto aspect-square p-4 bg-white rounded-lg flex items-center justify-center border"></div>
-                        <!-- [NEW] Info box for manual entry -->
                         <div class="mt-4 p-3 bg-gray-100 rounded-lg text-center">
                             <p class="text-sm text-gray-600">หากสแกนไม่ได้ แจ้งข้อมูลด้านล่าง:</p>
                             <p class="text-base font-semibold">ชื่อสมาชิก: <span id="qr-customer-name">-</span></p>
@@ -89,7 +88,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx7SGxa4YFnwSRtnJ90CP86kzmTCavxchonbn7Me-obbtjDgCCzneKQ09nBlqVPZFax/exec';
+            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzNQWFZgYSerkhoMltrImVPy8xECX8dGzPWDkEtdyb-vZtZxngF2MPU1GP4kj_4mug_vA/exec';
 
             let userProfile = null;
             let sessionTimer = null;
@@ -118,7 +117,6 @@
                     if (data.isMember) {
                         statusElement.textContent = 'Active Member';
                         statusElement.className = 'text-sm font-medium text-green-500';
-                        // [MODIFIED] Pass memberInfo to the showMemberApp function
                         showMemberApp(userId, data.activeSession, data.memberInfo);
                     } else {
                         statusElement.textContent = 'Not a Member';
@@ -157,7 +155,6 @@
                 }
             }
 
-            // [MODIFIED] Function now accepts memberInfo to populate the QR code box
             function showMemberApp(userId, activeSession, memberInfo) {
                 document.getElementById('registration-section').style.display = 'none';
                 document.getElementById('member-app-section').style.display = 'block';
@@ -184,7 +181,6 @@
                     inactiveMessage.style.display = 'block';
                 }
 
-                // [NEW] Populate the customer name and ID in the QR code tab
                 if(memberInfo) {
                     document.getElementById('qr-customer-name').textContent = memberInfo.nickname || '-';
                     document.getElementById('qr-customer-id').textContent = memberInfo.customerId || '-';
@@ -224,7 +220,6 @@
                 } catch (error) { displayDiv.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`; }
             }
             
-            // --- Other functions (showRegistrationForm, generateQrCode, showEditForm, handleSaveInfo, etc.) are unchanged ---
             function showRegistrationForm() {
                 document.getElementById('member-app-section').style.display = 'none';
                 document.getElementById('registration-section').style.display = 'block';
