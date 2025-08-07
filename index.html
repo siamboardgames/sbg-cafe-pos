@@ -362,19 +362,23 @@
 
         document.getElementById('manual-entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const btn = e.target.querySelector('button');
             const customerId = document.getElementById('manual-customerid').value;
             if (!customerId) return;
             
-            showStatus('กำลังค้นหาลูกค้า...', true); // [FIX] Added user feedback
+            btn.disabled = true;
+            showStatus('กำลังค้นหาลูกค้า...', true);
             try {
                 const data = await apiGet('getUserIdByCustomerId', { customerId });
                 if (data && data.userId) {
                     processUserId(data.userId);
                 } else {
-                    throw new Error('Could not retrieve a valid User ID for that Customer ID.');
+                    throw new Error('ไม่พบรหัสสมาชิกนี้');
                 }
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+            } finally {
+                btn.disabled = false;
             }
         });
 
