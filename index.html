@@ -1,164 +1,167 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจัดการร้านค้า (POS)</title>
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
-        .container { width: 100%; max-width: 600px; margin: 1rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
-        h1, h2, h3 { text-align: center; color: #1a202c; }
-        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
-        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        button.secondary { background-color: #6c757d; }
-        button.danger { background-color: #dc3545; }
-        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
-        #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
-        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
-        .status-success { background-color: #d4edda; color: #155724; }
-        .status-error { background-color: #f8d7da; color: #721c24; }
-        .player-card { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการร้านค้า (POS)</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
+        .container { width: 100%; max-width: 600px; margin: 1rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        h1, h2, h3 { text-align: center; color: #1a202c; }
+        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
+        button.secondary { background-color: #6c757d; }
+        button.danger { background-color: #dc3545; }
+        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
+        #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+        .player-card { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
+        .player-count-control { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .player-count-control input { text-align: center; }
+        .player-count-control button { width: 4rem; }
+    </style>
 </head>
-
 <body>
-    
-    <div class="container">
-        <h1>ระบบจัดการร้านค้า</h1>
 
-        <div id="login-section">
-            <h2>พนักงานเข้าสู่ระบบ</h2>
-            <form id="login-form">
-                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" placeholder="****" required></div>
-                <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
-            </form>
-        </div>
+    <div class="container">
+        <h1>ระบบจัดการร้านค้า</h1>
+        
+        <div id="staff-header" class="info-box hidden">
+            <p><strong>พนักงาน:</strong> <span id="staff-name-display"></span> | <strong>สาขา:</strong> <span id="branch-name-display"></span></p>
+        </div>
 
-        <div id="branch-section" class="section">
-            <h2>กรุณาเลือกสาขา</h2>
-            <div class="form-group"><label for="branch-select">สาขา</label>
-                <select id="branch-select">
-                    <option value="">-- เลือกสาขา --</option>
-                    <option value="Bangna">Bangna</option>
-                    <option value="Ngamwongwan">Ngamwongwan</option>
-                    <option value="WestGate">WestGate</option>
-                    <option value="EastVille">EastVille</option>
-                </select>
-            </div>
-        </div>
+        <div id="login-section">
+            <h2>พนักงานเข้าสู่ระบบ</h2>
+            <form id="login-form">
+                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" placeholder="****" required></div>
+                <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
+            </form>
+        </div>
 
-        <div id="entry-section" class="section">
+        <div id="branch-section" class="section">
+            <h2>กรุณาเลือกสาขา</h2>
+            <div class="form-group"><label for="branch-select">สาขา</label>
+                <select id="branch-select">
+                    <option value="">-- เลือกสาขา --</option>
+                    <option value="Bangna">Bangna</option>
+                    <option value="Ngamwongwan">Ngamwongwan</option>
+                    <option value="WestGate">WestGate</option>
+                    <option value="EastVille">EastVille</option>
+                </select>
+            </div>
+        </div>
 
-            <h2>ค้นหาลูกค้า / สร้างออเดอร์ใหม่</h2>
+        <div id="entry-section" class="section">
+            <h2>ค้นหาลูกค้า / สร้างออเดอร์ใหม่</h2>
+            <div id="qr-reader" style="width:100%;"></div>
+            <button id="start-scan-btn">สแกน QR Code</button>
+            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
+            <form id="manual-entry-form">
+                <div class="form-group"><label for="manual-customerid">กรอกรหัสสมาชิก</label><input type="text" id="manual-customerid" placeholder="เช่น 08250001"></div>
+                <button type="submit">ค้นหาลูกค้า</button>
+            </form>
+        </div>
 
-            <div id="qr-reader" style="width:100%;"></div>
-            <button id="start-scan-btn">สแกน QR Code</button>
-            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
-            <form id="manual-entry-form">
-                <div class="form-group"><label for="manual-customerid">กรอกรหัสสมาชิก</label><input type="text" id="manual-customerid" placeholder="เช่น 08250001"></div>
-                <button type="submit">ค้นหาลูกค้า</button>
-            </form>
-        </div>
+        <div id="status-message"></div>
+        
+        <div id="order-section" class="section">
+            <h3>ข้อมูลออเดอร์</h3>
+            <div id="customer-header" class="info-box mb-4"></div>
+            <div class="form-group">
+                <label for="table-input">ระบุโต๊ะ</label>
+                <input type="text" id="table-input" required placeholder="เช่น A1, B2">
+            </div>
+            <div class="form-group">
+                <label for="player-count-input">จำนวนผู้เล่นทั้งหมด</label>
+                <div class="player-count-control">
+                    <button type="button" id="decrement-players" class="secondary">-</button>
+                    <input type="number" id="player-count-input" value="1" min="1">
+                    <button type="button" id="increment-players" class="secondary">+</button>
+                </div>
+            </div>
+            <button id="generate-players-btn">ยืนยันจำนวน</button>
+            <div id="player-cards-container" class="mt-4"></div>
+            <button id="confirm-checkin-btn" class="mt-4 hidden">ยืนยันการ Check-In ทั้งหมด</button>
+        </div>
+        
+            <div id="checkout-section" class="section"></div>
 
-        <div id="status-message"></div>
-
-        <div id="order-section" class="section">
-            <h2 id="order-header">สร้างออเดอร์ใหม่</h2>
-            <div id="player-list" class="space-y-2 mb-4"></div>
-            <button id="add-player-btn" class="secondary mb-4">เพิ่มผู้เล่น</button>
-            <form id="order-details-form">
-                <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
-                <button type="submit" id="confirm-checkin-btn">ยืนยันการ Check-In</button>
-            </form>
-        </div>
-        <div id="checkout-section" class="section"></div>
-        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
-    </div>
+        <button id="add-another-player-btn" class="secondary" style="display:none; margin-top: 1rem;">+ เพิ่มผู้เล่นอีกคน</button>
+        <button id="logout-btn" class="danger" style="display:none; margin-top: 1rem;">ออกจากระบบ</button>
+        
+            </div> 
+        
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
+    </div>
 
 <script>
     // --- 1. CONFIGURATION & STATE ---
     const CONFIG = {
-        scriptURL: "https://script.google.com/macros/s/AKfycbw3tDYOtGY7tRr0vysDWZ2tY2Ka7HfQW1G23dpuklbXIBfSvdjpFtVd2eAugS2gdxGnyw/exec"
+        scriptURL: "https://script.google.com/macros/s/AKfycbxeGrZ_UwezhC8Qa-ekgnOf7yOJz_QMLqCdH5GzyxOSlYgonMQFw2azMVoHRDpG9s12RA/exec"
     };
 
-    // Refactored: Centralized state management
     const state = {
         staffPin: null,
+        staffName: null,
         selectedBranch: null,
         availableTickets: [],
-        currentOrder: [], // Array of player objects {userId, customerId, nickname, ...}
-    };
-
-    // --- 2. UI ELEMENT CACHE ---
-    // Refactored: Cached all DOM elements for performance and cleaner code
-    const ui = {
-        container: document.querySelector('.container'),
-        login: {
-            section: document.getElementById('login-section'),
-            form: document.getElementById('login-form'),
-            pinInput: document.getElementById('staff-pin'),
-            button: document.getElementById('login-btn')
-        },
-        branch: {
-            section: document.getElementById('branch-section'),
-            select: document.getElementById('branch-select')
-        },
-        entry: {
-            section: document.getElementById('entry-section'),
-            qrReader: document.getElementById('qr-reader'),
-            startScanBtn: document.getElementById('start-scan-btn'),
-            manualForm: document.getElementById('manual-entry-form'),
-            manualInput: document.getElementById('manual-customerid')
-        },
-        order: {
-            section: document.getElementById('order-section'),
-            playerList: document.getElementById('player-list'),
-            addPlayerBtn: document.getElementById('add-player-btn'),
-            form: document.getElementById('order-details-form'),
-            tableInput: document.getElementById('table-select'),
-            submitBtn: document.getElementById('confirm-checkin-btn')
-        },
-        checkout: {
-            section: document.getElementById('checkout-section')
-        },
-        statusMessage: document.getElementById('status-message'),
-        resetBtn: document.getElementById('reset-btn'),
-        logoutBtn: document.getElementById('logout-btn') // Make sure to add this button in HTML
+        currentOrder: [], // An array of player objects
     };
 
     let html5QrCode = null;
 
-    // --- 3. API HELPERS ---
-    // Refactored: Centralized API call logic for consistency and error handling
-    const api = {
-        async get(action, params = {}) {
-            const url = new URL(CONFIG.scriptURL);
-            url.searchParams.append('action', action);
-            for (const key in params) {
-                url.searchParams.append(key, params[key]);
-            }
-            const response = await fetch(url);
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'Unknown API error');
-            return result.data;
-        },
-        async post(payload) {
-            // Changed: Removed 'mode: no-cors' - This is the most critical fix.
-            const response = await fetch(CONFIG.scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Google Apps Script quirk
-                body: JSON.stringify(payload)
-            });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.message || 'Unknown API error');
-            return result;
-        }
+    // --- 2. UI ELEMENT CACHE ---
+    const ui = {
+        staffHeader: document.getElementById('staff-header'),
+        staffNameDisplay: document.getElementById('staff-name-display'),
+        branchNameDisplay: document.getElementById('branch-name-display'),
+        loginSection: document.getElementById('login-section'),
+        branchSection: document.getElementById('branch-section'),
+        entrySection: document.getElementById('entry-section'),
+        orderSection: document.getElementById('order-section'),
+        checkoutSection: document.getElementById('checkout-section'),
+        statusMessage: document.getElementById('status-message'),
+        addAnotherPlayerBtn: document.getElementById('add-another-player-btn'),
+        logoutBtn: document.getElementById('logout-btn'),
+        // Order Screen specific
+        tableInput: document.getElementById('table-input'),
+        playerCardsContainer: document.getElementById('player-cards-container'),
+        confirmCheckinBtn: document.getElementById('confirm-checkin-btn'),
     };
+
+    // --- 3. API HELPERS ---
+    async function apiGet(action, params = {}) {
+        const url = new URL(CONFIG.scriptURL);
+        url.searchParams.append('action', action);
+        for (const key in params) {
+            url.searchParams.append(key, params[key]);
+        }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        return result; // Return the full result object
+    }
+
+    async function apiPost(payload) {
+        const response = await fetch(CONFIG.scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        return result;
+    }
 
     // --- 4. UI MANAGEMENT ---
     function showStatus(message, isSuccess = true) {
@@ -167,65 +170,57 @@
         ui.statusMessage.style.display = 'block';
     }
 
-    function hideStatus() {
-        ui.statusMessage.style.display = 'none';
-    }
-
-    // Refactored: A single function to control which screen is visible
-    function showScreen(screenName) {
-        // Hide everything first
-        Object.values(ui).forEach(el => {
-            if (el.section) el.section.style.display = 'none';
-        });
-        ui.resetBtn.style.display = 'none';
+    function showScreen(screen) {
+        // Hide all major sections and buttons first
+        document.querySelectorAll('.section, #login-section').forEach(s => s.style.display = 'none');
+        ui.addAnotherPlayerBtn.style.display = 'none';
         ui.logoutBtn.style.display = 'none';
-        hideStatus();
+        ui.statusMessage.style.display = 'none';
+        ui.staffHeader.classList.add('hidden');
 
         // Stop scanner if it's running and we're leaving the entry screen
-        if (screenName !== 'entry' && html5QrCode && html5QrCode.isScanning) {
+        if (screen !== 'entry' && html5QrCode && html5QrCode.isScanning) {
             html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
         }
 
-        switch (screenName) {
+        // Show header and logout for any screen other than login
+        if (screen !== 'login') {
+            ui.staffHeader.classList.remove('hidden');
+            ui.logoutBtn.style.display = 'block';
+        }
+
+        switch (screen) {
             case 'login':
-                ui.login.section.style.display = 'block';
+                ui.loginSection.style.display = 'block';
                 break;
             case 'branch':
-                ui.branch.section.style.display = 'block';
-                ui.logoutBtn.style.display = 'block';
+                ui.branchSection.style.display = 'block';
                 break;
             case 'entry':
-                state.currentOrder = []; // Reset order when showing the entry screen
-                ui.entry.section.style.display = 'block';
-                ui.resetBtn.style.display = 'none'; // No need for reset here
-                ui.logoutBtn.style.display = 'block';
+                ui.entrySection.style.display = 'block';
                 break;
             case 'order':
-                ui.order.section.style.display = 'block';
-                ui.resetBtn.style.display = 'block';
-                ui.logoutBtn.style.display = 'block';
-                renderOrderList();
+                ui.orderSection.style.display = 'block';
+                ui.addAnotherPlayerBtn.style.display = 'block';
+                renderPlayerCards(); // Render the current order list
                 break;
             case 'checkout':
-                ui.checkout.section.style.display = 'block';
-                ui.resetBtn.style.display = 'block';
-                ui.logoutBtn.style.display = 'block';
+                ui.checkoutSection.style.display = 'block';
                 break;
         }
     }
-
+    
     // --- 5. UI RENDERING ---
-    function renderOrderList() {
-        ui.order.playerList.innerHTML = '';
+    function renderPlayerCards() {
+        ui.playerCardsContainer.innerHTML = '';
         if (state.currentOrder.length === 0) {
-            ui.order.playerList.innerHTML = `<p class="text-center text-gray-500">Scan or enter customer ID to add a player.</p>`;
+            showScreen('entry');
             return;
         }
 
         state.currentOrder.forEach((player, index) => {
             const card = document.createElement('div');
             card.className = 'player-card';
-            
             let ticketOptions = state.availableTickets.map(ticket =>
                 `<option value='${JSON.stringify({ name: ticket.name, price: ticket.price })}'>
                     ${ticket.name} (${ticket.price} บาท)
@@ -233,218 +228,196 @@
             ).join('');
 
             card.innerHTML = `
-                <p><strong>รหัสสมาชิก:</strong> ${player.customerId || 'N/A'}</p>
-                <p><strong>ชื่อเล่น:</strong> ${player.nickname || 'N/A'}</p>
-                <div class="form-group mt-2">
-                    <label for="ticket-select-${index}">เลือกตั๋ว</label>
-                    <select id="ticket-select-${index}" required>${ticketOptions}</select>
-                </div>
-                <div class="form-group">
-                    <label for="customer-type-${index}">ประเภทลูกค้า</label>
-                    <select id="customer-type-${index}" required>
-                        <option value="นักศึกษา">นักศึกษา</option>
-                        <option value="วัยทำงาน" selected>วัยทำงาน</option>
-                        <option value="ครอบครัว">ครอบครัว</option>
-                    </select>
-                </div>`;
-            ui.order.playerList.appendChild(card);
+                <p style="font-weight:bold;">${player.nickname} <span style="font-weight:normal; color:#666; font-size:0.9em;">(ID: ${player.customerId || 'GUEST'})</span></p>
+                <div class="form-group" style="margin-top:0.5rem;"><label for="ticket-select-${index}">เลือกตั๋ว</label><select id="ticket-select-${index}" required>${ticketOptions}</select></div>
+                <div class="form-group"><label for="customer-type-${index}">ประเภทลูกค้า</label><select id="customer-type-${index}" required><option value="นักศึกษา">นักศึกษา</option><option value="วัยทำงาน" selected>วัยทำงาน</option><option value="ครอบครัว">ครอบครัว</option></select></div>`;
+            ui.playerCardsContainer.appendChild(card);
         });
+        ui.confirmCheckinBtn.classList.remove('hidden');
     }
 
     function renderCheckoutScreen(sessionData) {
-        const timePlayed = (() => {
-            const start = new Date(sessionData.checkInTime).getTime();
-            const now = new Date().getTime();
-            const diff = now - start;
-            const hours = Math.floor(diff / 3600000);
-            const minutes = Math.floor((diff % 3600000) / 60000);
-            return `${hours} ชั่วโมง ${minutes} นาที`;
-        })();
-
-        ui.checkout.section.innerHTML = `
-            <h2>สรุปยอด Check-Out</h2>
-            <div class="info-box">
-                <p><strong>OrderID:</strong> ${sessionData.orderId}</p>
-                <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
-                <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
-                <p><strong>ราคาเต็ม:</strong> ${sessionData.totalPrice} บาท</p>
-            </div>
-            <form id="checkout-form" class="mt-4">
-                <div class="form-group">
-                    <label for="voucher-code">รหัส Voucher (ถ้ามี)</label>
-                    <input type="text" id="voucher-code">
-                </div>
-                 <div class="form-group">
-                    <label for="special-discount">ส่วนลดพิเศษ (บาท)</label>
-                    <input type="number" id="special-discount" value="0" min="0">
-                </div>
-                <button type="submit" class="danger">ยืนยันและคำนวณราคา</button>
-            </form>
-            <div id="final-price-display" class="mt-4 text-center" style="display:none;"></div>`;
-        
-        document.getElementById('checkout-form').addEventListener('submit', (e) => handleCheckoutSubmit(e, sessionData));
+        // Placeholder for checkout UI
+        ui.checkoutSection.innerHTML = `<h2>Check-out</h2><div class="info-box"><p>Order ID: ${sessionData.orderId} is ready for checkout.</p></div>`;
         showScreen('checkout');
     }
+
 
     // --- 6. CORE LOGIC & EVENT HANDLERS ---
     async function handleLogin(e) {
         e.preventDefault();
-        const pin = ui.login.pinInput.value;
-        ui.login.button.disabled = true;
-        ui.login.button.textContent = 'กำลังตรวจสอบ...';
+        const btn = e.target.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = 'กำลังตรวจสอบ...';
         try {
-            await api.get('staffLogin', { pin });
+            const pin = document.getElementById('staff-pin').value;
+            const result = await apiGet('staffLogin', { pin });
             state.staffPin = pin;
-            await loadInitialData(); // Load tickets after successful login
-            
-            const savedBranch = localStorage.getItem('selectedBranch');
-            if (savedBranch) {
-                state.selectedBranch = savedBranch;
-                ui.branch.select.value = savedBranch;
-                showScreen('entry');
-            } else {
-                showScreen('branch');
-            }
+            state.staffName = result.data.staffName; // Assuming backend returns staffName
+            localStorage.setItem('staffName', state.staffName);
+            localStorage.setItem('staffPin', state.staffPin);
+            await loadTickets();
+            updateHeaderAndProceed();
         } catch (error) {
             showStatus(error.message, false);
         } finally {
-            ui.login.button.disabled = false;
-            ui.login.button.textContent = 'เข้าสู่ระบบ';
+            btn.disabled = false;
+            btn.textContent = 'เข้าสู่ระบบ';
+        }
+    }
+    
+    function updateHeaderAndProceed() {
+        const savedBranch = localStorage.getItem('selectedBranch');
+        state.staffName = localStorage.getItem('staffName');
+        state.staffPin = localStorage.getItem('staffPin');
+
+        if (!state.staffPin) { showScreen('login'); return; }
+
+        ui.staffNameDisplay.textContent = state.staffName;
+        if (savedBranch) {
+            state.selectedBranch = savedBranch;
+            ui.branchNameDisplay.textContent = state.selectedBranch;
+            document.getElementById('branch-select').value = savedBranch;
+            showScreen('entry');
+        } else {
+            showScreen('branch');
         }
     }
 
-    async function loadInitialData() {
+    async function loadTickets() {
         try {
-            state.availableTickets = await api.get('getTickets');
+            const result = await apiGet('getTickets');
+            state.availableTickets = result.data;
         } catch (error) {
             showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
         }
     }
 
-    function handleBranchSelect(e) {
-        state.selectedBranch = e.target.value;
-        if (state.selectedBranch) {
-            localStorage.setItem('selectedBranch', state.selectedBranch);
-            showScreen('entry');
-        }
-    }
-
     async function processUser(identifier, type = 'userId') {
-        if (!state.selectedBranch) {
-            showStatus('กรุณาเลือกสาขาก่อน', false);
-            return;
-        }
         showStatus('กำลังตรวจสอบข้อมูลลูกค้า...', true);
-        
         try {
-            let userId = identifier;
+            let userIdToProcess = identifier;
             if (type === 'customerId') {
-                const data = await api.get('getUserIdByCustomerId', { customerId: identifier });
-                userId = data.userId;
+                const result = await apiGet('getUserIdByCustomerId', { customerId: identifier });
+                userIdToProcess = result.data.userId;
             }
 
-            // Refactored: Use the more efficient getUserInitialData endpoint
-            const data = await api.get('getUserInitialData', { userId });
-
-            if (data.activeSession) {
-                // User is already checked-in, show checkout screen
-                renderCheckoutScreen(data.activeSession);
+            if (state.currentOrder.some(p => p.userId === userIdToProcess)) {
+                showStatus('ผู้เล่นคนนี้อยู่ในออเดอร์แล้ว', false);
+                return;
+            }
+            
+            const result = await apiGet('getUserInitialData', { userId: userIdToProcess });
+            
+            if (result.data.activeSession) {
+                renderCheckoutScreen(result.data.activeSession);
             } else {
-                // User is not checked-in, add to order
-                const playerExists = state.currentOrder.some(p => p.userId === userId);
-                if (!playerExists) {
-                    state.currentOrder.push({ userId, ...data.memberInfo });
-                } else {
-                    showStatus('ผู้เล่นคนนี้อยู่ในออเดอร์แล้ว', false);
-                }
+                state.currentOrder.push({ userId: userIdToProcess, ...result.data.memberInfo });
                 showScreen('order');
             }
         } catch (error) {
             showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-            showScreen('entry'); // Go back to entry screen on error
         }
     }
-
+    
     async function handleCheckInSubmit(e) {
         e.preventDefault();
-        ui.order.submitBtn.disabled = true;
-        ui.order.submitBtn.textContent = 'กำลังบันทึก...';
+        if (!ui.tableInput.value) {
+            showStatus('กรุณาระบุโต๊ะ', false);
+            return;
+        }
+        ui.confirmCheckinBtn.disabled = true;
+        ui.confirmCheckinBtn.textContent = 'กำลังบันทึก...';
 
         try {
-            const playersData = state.currentOrder.map((player, index) => {
-                const ticketData = JSON.parse(document.getElementById(`ticket-select-${index}`).value);
+            const playersData = state.currentOrder.map((player, i) => {
+                const ticketData = JSON.parse(document.getElementById(`ticket-select-${i}`).value);
                 return {
                     userId: player.userId,
                     ticketName: ticketData.name,
                     price: ticketData.price,
-                    customerType: document.getElementById(`customer-type-${index}`).value
+                    customerType: document.getElementById(`customer-type-${i}`).value
                 };
             });
-            
+
             const payload = {
                 action: 'checkIn',
                 branch: state.selectedBranch,
-                table: ui.order.tableInput.value,
+                table: ui.tableInput.value,
                 players: playersData,
-                staffId: state.staffPin // Include staff PIN for logging
+                staffId: state.staffPin
             };
 
-            // CRITICAL FIX: Properly await the POST request and check the response.
-            const result = await api.post(payload);
-            
+            const result = await apiPost(payload);
             showStatus(`เช็คอินสำเร็จ! Order ID: ${result.orderId}`, true);
-            setTimeout(() => showScreen('entry'), 2500);
+            setTimeout(resetForNewOrder, 2500);
 
         } catch (error) {
             showStatus(`เช็คอินไม่สำเร็จ: ${error.message}`, false);
-            ui.order.submitBtn.disabled = false;
-            ui.order.submitBtn.textContent = 'ยืนยันการ Check-In';
+        } finally {
+            ui.confirmCheckinBtn.disabled = false;
+            ui.confirmCheckinBtn.textContent = 'ยืนยันการ Check-In ทั้งหมด';
         }
     }
 
-    // Placeholder for checkout logic
-    async function handleCheckoutSubmit(e, sessionData) {
-        e.preventDefault();
-        showStatus('ฟังก์ชัน Check-out ยังไม่เสร็จสมบูรณ์', false);
-        // This is where you would call the `checkOut` API endpoint
+    function resetForNewOrder() {
+        state.currentOrder = [];
+        ui.tableInput.value = '';
+        ui.playerCardsContainer.innerHTML = '';
+        ui.confirmCheckinBtn.classList.add('hidden');
+        showScreen('entry');
     }
 
     function handleLogout() {
+        localStorage.removeItem('staffName');
+        localStorage.removeItem('staffPin');
+        localStorage.removeItem('selectedBranch');
+        state.staffName = null;
         state.staffPin = null;
         state.selectedBranch = null;
-        localStorage.removeItem('selectedBranch');
-        ui.login.pinInput.value = '';
+        state.currentOrder = [];
+        document.getElementById('staff-pin').value = '';
         showScreen('login');
     }
-    
+
     // --- 7. INITIALIZATION ---
     function initialize() {
-        // Attach all event listeners
-        ui.login.form.addEventListener('submit', handleLogin);
-        ui.branch.select.addEventListener('change', handleBranchSelect);
-        ui.entry.manualForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            processUser(ui.entry.manualInput.value, 'customerId');
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+        document.getElementById('branch-select').addEventListener('change', (e) => {
+            localStorage.setItem('selectedBranch', e.target.value);
+            updateHeaderAndProceed();
         });
-        ui.entry.startScanBtn.addEventListener('click', () => {
+        document.getElementById('start-scan-btn').addEventListener('click', () => {
             html5QrCode = new Html5Qrcode("qr-reader");
-            const onScanSuccess = (decodedText) => {
-                if (html5QrCode.isScanning) {
-                    html5QrCode.stop().then(() => processUser(decodedText, 'userId'));
-                }
-            };
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, onScanSuccess)
-                .catch(err => showStatus("ไม่สามารถเปิดกล้องได้", false));
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    if (html5QrCode.isScanning) {
+                        html5QrCode.stop().then(() => processUser(decodedText, 'userId'));
+                    }
+                },
+                (errorMessage) => {}
+            ).catch(err => showStatus("ไม่สามารถเปิดกล้องได้", false));
         });
-        ui.order.addPlayerBtn.addEventListener('click', () => showScreen('entry'));
-        ui.order.form.addEventListener('submit', handleCheckInSubmit);
-        ui.resetBtn.addEventListener('click', () => showScreen('entry'));
+        document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const customerId = document.getElementById('manual-customerid').value;
+            if (customerId) processUser(customerId, 'customerId');
+        });
+        
+        ui.addAnotherPlayerBtn.addEventListener('click', () => showScreen('entry'));
+        ui.confirmCheckinBtn.addEventListener('click', handleCheckInSubmit);
         ui.logoutBtn.addEventListener('click', handleLogout);
 
-        showScreen('login'); // Start at the login screen
+        // Check if already logged in from a previous session
+        if (localStorage.getItem('staffPin')) {
+            loadTickets();
+            updateHeaderAndProceed();
+        } else {
+            showScreen('login');
+        }
     }
 
     initialize();
 </script>
-
-
+</body>
+</html>
