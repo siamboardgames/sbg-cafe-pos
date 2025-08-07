@@ -196,8 +196,7 @@
         <button id="reset-btn" class="secondary hidden">กลับไปหน้าค้นหา</button>
         <button id="logout-btn" class="danger hidden">ออกจากระบบ</button>
     </div>
-
-<script>
+</div> <script>
     // --- 1. CONFIGURATION & STATE ---
     const CONFIG = {
         scriptURL: "https://script.google.com/macros/s/AKfycbyqR-fgIbCGm5yitwXPTPaJKduQOqMOamgkM6JVBxAfYM3ssMLAsBeJb2_cW03uy61Ytw/exec"
@@ -208,7 +207,7 @@
         staffName: null,
         selectedBranch: null,
         availableTickets: [],
-        currentOrder: [], // Array of player objects
+        currentOrder: [], // An array of player objects
         html5QrCode: null,
         isScanning: false
     };
@@ -233,7 +232,6 @@
         confirmBranchBtn: document.getElementById('confirm-branch-btn'),
         manualCustomerId: document.getElementById('manual-customerid'),
         tableInput: document.getElementById('table-input'),
-        playerCountInput: document.getElementById('player-count-input'),
         playerCardsContainer: document.getElementById('player-cards-container'),
         confirmCheckinBtn: document.getElementById('confirm-checkin-btn'),
         customerHeader: document.getElementById('customer-header'),
@@ -246,54 +244,30 @@
 
     // --- 3. API HELPERS ---
     async function apiGet(action, params = {}) {
-        try {
-            console.log('API GET:', action, params); // DEBUG
-            const url = new URL(CONFIG.scriptURL);
-            url.searchParams.append('action', action);
-            for (const key in params) {
-                if (params[key] !== null && params[key] !== undefined) {
-                    url.searchParams.append(key, params[key]);
-                }
+        const url = new URL(CONFIG.scriptURL);
+        url.searchParams.append('action', action);
+        for (const key in params) {
+            if (params[key] !== null && params[key] !== undefined) {
+                url.searchParams.append(key, params[key]);
             }
-            console.log('GET URL:', url.toString()); // DEBUG
-            
-            const response = await fetch(url);
-            console.log('GET Response status:', response.status); // DEBUG
-            
-            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-            
-            const result = await response.json();
-            console.log('GET Result:', result); // DEBUG
-            
-            if (!result.success) throw new Error(result.message || 'Unknown API error');
-            return result;
-        } catch (error) {
-            console.error('API GET Error:', error);
-            throw error;
         }
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        return result;
     }
 
     async function apiPost(payload) {
-        try {
-            console.log('API POST:', payload); // DEBUG
-            const response = await fetch(CONFIG.scriptURL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-            console.log('POST Response status:', response.status); // DEBUG
-            
-            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-            
-            const result = await response.json();
-            console.log('POST Result:', result); // DEBUG
-            
-            if (!result.success) throw new Error(result.message || 'Unknown API error');
-            return result;
-        } catch (error) {
-            console.error('API POST Error:', error);
-            throw error;
-        }
+        const response = await fetch(CONFIG.scriptURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(payload)
+        });
+        if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        return result;
     }
 
     // --- 4. UI MANAGEMENT ---
@@ -301,13 +275,6 @@
         ui.statusMessage.textContent = message;
         ui.statusMessage.className = isSuccess ? 'status-success' : 'status-error';
         ui.statusMessage.style.display = 'block';
-        
-        // Auto-hide status after 5 seconds for success messages
-        if (isSuccess) {
-            setTimeout(() => {
-                ui.statusMessage.style.display = 'none';
-            }, 5000);
-        }
     }
 
     function hideStatus() {
@@ -315,20 +282,17 @@
     }
 
     function showScreen(screen) {
-        // Hide all sections first
-        document.querySelectorAll('.section, #login-section').forEach(s => s.style.display = 'none');
+        document.querySelectorAll('.section, #login-section').forEach(s => s.classList.add('hidden'));
         ui.addAnotherPlayerBtn.classList.add('hidden');
         ui.logoutBtn.classList.add('hidden');
         ui.resetBtn.classList.add('hidden');
         ui.staffHeader.classList.add('hidden');
         hideStatus();
 
-        // Stop scanner if switching away from entry screen
         if (screen !== 'entry') {
             stopScanner();
         }
 
-        // Show appropriate elements based on screen
         if (screen !== 'login') {
             ui.staffHeader.classList.remove('hidden');
             ui.logoutBtn.classList.remove('hidden');
@@ -336,23 +300,23 @@
 
         switch (screen) {
             case 'login':
-                ui.loginSection.style.display = 'block';
+                document.getElementById('login-section').classList.remove('hidden');
                 break;
             case 'branch':
-                ui.branchSection.style.display = 'block';
+                ui.branchSection.classList.remove('hidden');
                 break;
             case 'entry':
-                ui.entrySection.style.display = 'block';
+                ui.entrySection.classList.remove('hidden');
                 ui.resetBtn.classList.remove('hidden');
                 break;
             case 'order':
-                ui.orderSection.style.display = 'block';
+                ui.orderSection.classList.remove('hidden');
                 ui.addAnotherPlayerBtn.classList.remove('hidden');
                 ui.resetBtn.classList.remove('hidden');
                 renderPlayerCards();
                 break;
             case 'checkout':
-                ui.checkoutSection.style.display = 'block';
+                ui.checkoutSection.classList.remove('hidden');
                 ui.resetBtn.classList.remove('hidden');
                 break;
         }
@@ -361,131 +325,84 @@
     // --- 5. QR SCANNER MANAGEMENT ---
     function startScanner() {
         if (state.isScanning) return;
-        
-        try {
-            state.html5QrCode = new Html5Qrcode("qr-reader");
-            state.html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText) => {
-                    if (state.isScanning) {
-                        stopScanner();
-                        processUser(decodedText.trim(), 'userId');
-                    }
-                },
-                (errorMessage) => {
-                    // Silent error handling for scanning
+        state.html5QrCode = new Html5Qrcode("qr-reader");
+        state.html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+                if (state.isScanning) {
+                    stopScanner();
+                    processUser(decodedText.trim(), 'userId');
                 }
-            ).then(() => {
-                state.isScanning = true;
-                ui.startScanBtn.classList.add('hidden');
-                ui.stopScanBtn.classList.remove('hidden');
-                showStatus('กำลังสแกน QR Code...', true);
-            }).catch(err => {
-                console.error("Camera error:", err);
-                showStatus("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาตใช้กล้อง", false);
-            });
-        } catch (error) {
-            console.error("Scanner initialization error:", error);
-            showStatus("เกิดข้อผิดพลาดในการเริ่มสแกน", false);
-        }
+            },
+            (errorMessage) => {}
+        ).then(() => {
+            state.isScanning = true;
+            ui.startScanBtn.classList.add('hidden');
+            ui.stopScanBtn.classList.remove('hidden');
+            showStatus('กำลังสแกน QR Code...', true);
+        }).catch(err => {
+            showStatus("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาต", false);
+        });
     }
 
     function stopScanner() {
         if (state.html5QrCode && state.isScanning) {
             state.html5QrCode.stop().then(() => {
-                state.html5QrCode = null;
                 state.isScanning = false;
                 ui.startScanBtn.classList.remove('hidden');
                 ui.stopScanBtn.classList.add('hidden');
                 hideStatus();
-            }).catch(err => {
-                console.error("Failed to stop scanner:", err);
-            });
+            }).catch(err => {});
         }
     }
 
-    // --- 6. PLAYER MANAGEMENT ---
+    // --- 6. PLAYER MANAGEMENT & RENDERING ---
     function renderPlayerCards() {
         ui.playerCardsContainer.innerHTML = '';
-        
         if (state.currentOrder.length === 0) {
             ui.confirmCheckinBtn.classList.add('hidden');
             return;
         }
-
         state.currentOrder.forEach((player, index) => {
             const card = document.createElement('div');
             card.className = 'player-card';
-            
-            let ticketOptions = '';
-            if (state.availableTickets.length > 0) {
-                ticketOptions = state.availableTickets.map(ticket =>
-                    `<option value='${JSON.stringify({ name: ticket.name, price: ticket.price })}'>
-                        ${ticket.name} (${ticket.price} บาท)
-                    </option>`
-                ).join('');
-            } else {
-                ticketOptions = '<option value=\'{"name":"ทั่วไป","price":0}\'>ทั่วไป (0 บาท)</option>';
-            }
+            const ticketOptions = state.availableTickets.map(ticket =>
+                `<option value='${JSON.stringify({ name: ticket.name, price: ticket.price })}'>${ticket.name} (${ticket.price} บาท)</option>`
+            ).join('');
 
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <p style="font-weight:bold; margin: 0;">${player.nickname || 'ลูกค้าทั่วไป'} 
-                        <span style="font-weight:normal; color:#666; font-size:0.9em;">(ID: ${player.customerId || 'GUEST'})</span>
-                    </p>
-                    <button type="button" class="remove-player-btn" data-index="${index}" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; width: auto;">ลบ</button>
+                    <p style="font-weight:bold; margin: 0;">${player.nickname || 'ลูกค้าทั่วไป'} <span style="font-weight:normal; color:#666; font-size:0.9em;">(ID: ${player.customerId || 'GUEST'})</span></p>
+                    <button type="button" class="remove-player-btn" data-index="${index}" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; width: auto; min-width: auto;">ลบ</button>
                 </div>
-                <div class="form-group">
-                    <label for="ticket-select-${index}">เลือกตั๋ว</label>
-                    <select id="ticket-select-${index}" required>
-                        ${ticketOptions}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="customer-type-${index}">ประเภทลูกค้า</label>
-                    <select id="customer-type-${index}" required>
-                        <option value="นักศึกษา">นักศึกษา</option>
-                        <option value="วัยทำงาน" selected>วัยทำงาน</option>
-                        <option value="ครอบครัว">ครอบครัว</option>
-                    </select>
-                </div>`;
-            
+                <div class="form-group"><label for="ticket-select-${index}">เลือกตั๋ว</label><select id="ticket-select-${index}" required>${ticketOptions}</select></div>
+                <div class="form-group"><label for="customer-type-${index}">ประเภทลูกค้า</label><select id="customer-type-${index}" required><option value="นักศึกษา">นักศึกษา</option><option value="วัยทำงาน" selected>วัยทำงาน</option><option value="ครอบครัว">ครอบครัว</option></select></div>`;
             ui.playerCardsContainer.appendChild(card);
         });
-
-        // Add event listeners for remove buttons
-        document.querySelectorAll('.remove-player-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const index = parseInt(e.target.dataset.index);
-                state.currentOrder.splice(index, 1);
-                renderPlayerCards();
-                updateCustomerHeader();
-            });
-        });
-
+        document.querySelectorAll('.remove-player-btn').forEach(btn => btn.addEventListener('click', (e) => {
+            state.currentOrder.splice(parseInt(e.target.dataset.index), 1);
+            renderPlayerCards();
+            updateCustomerHeader();
+        }));
         ui.confirmCheckinBtn.classList.remove('hidden');
         updateCustomerHeader();
     }
 
     function updateCustomerHeader() {
-        if (state.currentOrder.length === 0) {
-            ui.customerHeader.innerHTML = '<p>ยังไม่มีผู้เล่นในออเดอร์</p>';
+        if (state.currentOrder.length > 0) {
+            ui.customerHeader.innerHTML = `<p><strong>ผู้เล่น (${state.currentOrder.length} คน):</strong> ${state.currentOrder.map(p => p.nickname || 'ลูกค้าทั่วไป').join(', ')}</p>`;
+            ui.customerHeader.classList.remove('hidden');
         } else {
-            const playerNames = state.currentOrder.map(p => p.nickname || 'ลูกค้าทั่วไป').join(', ');
-            ui.customerHeader.innerHTML = `<p><strong>ผู้เล่น (${state.currentOrder.length} คน):</strong> ${playerNames}</p>`;
+            ui.customerHeader.classList.add('hidden');
         }
     }
 
     function addGuestPlayer() {
         const guestNumber = state.currentOrder.filter(p => p.customerId === 'GUEST').length + 1;
-        const guestPlayer = {
+        state.currentOrder.push({
             userId: `GUEST_${Date.now()}_${guestNumber}`,
             customerId: 'GUEST',
             nickname: `ลูกค้าทั่วไป ${guestNumber}`
-        };
-        
-        state.currentOrder.push(guestPlayer);
+        });
         showScreen('order');
     }
 
@@ -495,42 +412,22 @@
         const btn = e.target.querySelector('button');
         btn.disabled = true;
         btn.textContent = 'กำลังตรวจสอบ...';
-        
         try {
             const pin = ui.staffPin.value.trim();
-            console.log('Attempting login with PIN:', pin); // DEBUG
-            
-            if (!pin) {
-                throw new Error('กรุณากรอกรหัส PIN');
-            }
+            if (!pin) throw new Error('กรุณากรอกรหัส PIN');
 
-            // Try both GET and POST methods to see which works
-            console.log('Trying POST method first...'); // DEBUG
-            let result;
-            try {
-                result = await apiPost({ action: 'staffLogin', pin: pin });
-                console.log('POST result:', result); // DEBUG
-            } catch (postError) {
-                console.log('POST failed, trying GET:', postError); // DEBUG
-                result = await apiGet('staffLogin', { pin: pin });
-                console.log('GET result:', result); // DEBUG
-            }
+            // Simplified: Login should always be a GET request based on our backend design.
+            const result = await apiGet('staffLogin', { pin });
             
             state.staffPin = pin;
-            // Handle both possible response formats
-            state.staffName = result.data?.staffName || `Staff-${pin}`;
+            state.staffName = result.data.staffName; // Now expects data.staffName from the backend
             
-            console.log('Login successful, staff name:', state.staffName); // DEBUG
-            
-            // Save to localStorage
             localStorage.setItem('staffName', state.staffName);
             localStorage.setItem('staffPin', state.staffPin);
             
             await loadTickets();
             updateHeaderAndProceed();
-            
         } catch (error) {
-            console.error('Login error:', error); // DEBUG
             showStatus(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`, false);
         } finally {
             btn.disabled = false;
@@ -539,20 +436,15 @@
     }
     
     function updateHeaderAndProceed() {
-        const savedBranch = localStorage.getItem('selectedBranch');
-        state.staffName = localStorage.getItem('staffName') || 'พนักงาน';
+        state.staffName = localStorage.getItem('staffName');
         state.staffPin = localStorage.getItem('staffPin');
-
-        if (!state.staffPin) { 
-            showScreen('login'); 
-            return; 
-        }
+        if (!state.staffPin) { showScreen('login'); return; }
 
         ui.staffNameDisplay.textContent = state.staffName;
-        
+        const savedBranch = localStorage.getItem('selectedBranch');
         if (savedBranch) {
             state.selectedBranch = savedBranch;
-            ui.branchNameDisplay.textContent = state.selectedBranch;
+            ui.branchNameDisplay.textContent = savedBranch;
             ui.branchSelect.value = savedBranch;
             showScreen('entry');
         } else {
@@ -565,83 +457,48 @@
             const result = await apiGet('getTickets');
             state.availableTickets = result.data || [];
         } catch (error) {
-            console.error('Failed to load tickets:', error);
-            showStatus(`ไม่สามารถโหลดรายการตั๋วได้: ${error.message}`, false);
-            state.availableTickets = []; // Fallback to empty array
+            state.availableTickets = [];
         }
     }
 
     async function processUser(identifier, type = 'userId') {
-        if (!identifier || !identifier.trim()) {
-            showStatus('ข้อมูลไม่ถูกต้อง', false);
-            return;
-        }
-
+        if (!identifier) return;
         showStatus('กำลังตรวจสอบข้อมูลลูกค้า...', true);
-        
         try {
-            let userIdToProcess = identifier.trim();
-            
+            let userIdToProcess = identifier;
             if (type === 'customerId') {
                 const result = await apiGet('getUserIdByCustomerId', { customerId: identifier });
-                userIdToProcess = result.userId; // Fixed: Direct access, not result.data.userId
-                if (!userIdToProcess) {
-                    throw new Error('ไม่พบข้อมูลลูกค้า');
-                }
+                userIdToProcess = result.data.userId;
             }
 
-            // Check if user already in current order
             if (state.currentOrder.some(p => p.userId === userIdToProcess)) {
                 showStatus('ผู้เล่นคนนี้อยู่ในออเดอร์แล้ว', false);
                 return;
             }
             
             const result = await apiGet('getUserInitialData', { userId: userIdToProcess });
-            
-            if (result.data?.activeSession) {
+            if (result.data.activeSession) {
                 renderCheckoutScreen(result.data.activeSession);
             } else {
-                const memberInfo = result.data?.memberInfo || {};
-                state.currentOrder.push({ 
-                    userId: userIdToProcess, 
-                    customerId: memberInfo.customerId || userIdToProcess,
-                    nickname: memberInfo.nickname || 'ลูกค้า',
-                    ...memberInfo 
-                });
+                state.currentOrder.push({ userId: userIdToProcess, ...result.data.memberInfo });
                 showScreen('order');
             }
         } catch (error) {
             showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
         }
     }
-
+    
     function renderCheckoutScreen(sessionData) {
-        ui.checkoutContent.innerHTML = `
-            <div class="info-box">
-                <h4>ข้อมูลเซสชันที่ยังไม่ได้ชำระ</h4>
-                <p><strong>Order ID:</strong> ${sessionData.orderId || 'N/A'}</p>
-                <p><strong>โต๊ะ:</strong> ${sessionData.table || 'N/A'}</p>
-                <p><strong>เวลาเริ่ม:</strong> ${sessionData.startTime || 'N/A'}</p>
-                <p><strong>ยอดรวม:</strong> ${sessionData.totalAmount || 0} บาท</p>
-            </div>
-            <button id="process-checkout-btn" class="mt-4">ดำเนินการ Check-out</button>`;
-        
-        document.getElementById('process-checkout-btn')?.addEventListener('click', () => {
-            // Process checkout logic here
-            showStatus('ระบบ Check-out ยังไม่พร้อมใช้งาน', false);
-        });
-        
+        ui.checkoutContent.innerHTML = `<div class="info-box"><p>ลูกค้ามีเซสชันที่ยังไม่ได้ชำระเงิน (Order ID: ${sessionData.orderId}). ระบบ Check-out ยังไม่พร้อมใช้งาน</p></div>`;
         showScreen('checkout');
     }
     
     async function handleCheckInSubmit(e) {
         e.preventDefault();
-        
         if (!ui.tableInput.value.trim()) {
             showStatus('กรุณาระบุโต๊ะ', false);
             return;
         }
-
         if (state.currentOrder.length === 0) {
             showStatus('กรุณาเพิ่มผู้เล่นอย่างน้อย 1 คน', false);
             return;
@@ -649,49 +506,22 @@
 
         ui.confirmCheckinBtn.disabled = true;
         ui.confirmCheckinBtn.textContent = 'กำลังบันทึก...';
-
         try {
-            const playersData = [];
-            
-            for (let i = 0; i < state.currentOrder.length; i++) {
-                const player = state.currentOrder[i];
-                const ticketSelect = document.getElementById(`ticket-select-${i}`);
-                const customerTypeSelect = document.getElementById(`customer-type-${i}`);
-                
-                if (!ticketSelect || !customerTypeSelect) {
-                    throw new Error('ข้อมูลไม่ครบถ้วน กรุณาลองใหม่');
-                }
-
-                let ticketData;
-                try {
-                    ticketData = JSON.parse(ticketSelect.value);
-                } catch (err) {
-                    throw new Error('ข้อมูลตั๋วไม่ถูกต้อง');
-                }
-
-                playersData.push({
-                    userId: player.userId,
-                    customerId: player.customerId,
-                    nickname: player.nickname,
-                    ticketName: ticketData.name,
-                    price: ticketData.price,
-                    customerType: customerTypeSelect.value
-                });
-            }
-
+            const playersData = state.currentOrder.map((player, i) => {
+                const ticketData = JSON.parse(document.getElementById(`ticket-select-${i}`).value);
+                return {
+                    userId: player.userId, customerId: player.customerId, nickname: player.nickname,
+                    ticketName: ticketData.name, price: ticketData.price,
+                    customerType: document.getElementById(`customer-type-${i}`).value
+                };
+            });
             const payload = {
-                action: 'checkIn',
-                branch: state.selectedBranch,
-                table: ui.tableInput.value.trim().toUpperCase(),
-                players: playersData,
-                staffId: state.staffPin
+                action: 'checkIn', branch: state.selectedBranch, staffId: state.staffPin,
+                table: ui.tableInput.value.trim().toUpperCase(), players: playersData
             };
-
             const result = await apiPost(payload);
-            showStatus(`เช็คอินสำเร็จ! Order ID: ${result.orderId || 'N/A'}`, true);
-            
+            showStatus(`เช็คอินสำเร็จ! Order ID: ${result.orderId}`, true);
             setTimeout(resetForNewOrder, 3000);
-
         } catch (error) {
             showStatus(`เช็คอินไม่สำเร็จ: ${error.message}`, false);
         } finally {
@@ -704,106 +534,53 @@
         state.currentOrder = [];
         ui.tableInput.value = '';
         ui.manualCustomerId.value = '';
-        ui.playerCountInput.value = '1';
         ui.playerCardsContainer.innerHTML = '';
         ui.confirmCheckinBtn.classList.add('hidden');
-        ui.customerHeader.innerHTML = '';
+        ui.customerHeader.classList.add('hidden');
         showScreen('entry');
     }
 
     function handleLogout() {
-        localStorage.removeItem('staffName');
-        localStorage.removeItem('staffPin');
-        localStorage.removeItem('selectedBranch');
-        state.staffName = null;
-        state.staffPin = null;
-        state.selectedBranch = null;
-        state.currentOrder = [];
-        ui.staffPin.value = '';
-        ui.manualCustomerId.value = '';
-        ui.branchSelect.value = '';
+        localStorage.clear();
+        state.staffName = null; state.staffPin = null; state.selectedBranch = null; state.currentOrder = [];
+        ui.staffPin.value = ''; ui.manualCustomerId.value = ''; ui.branchSelect.value = '';
         stopScanner();
         showScreen('login');
     }
 
-    // --- 8. EVENT LISTENERS SETUP ---
-    function setupEventListeners() {
-        // Login form
+    // --- 8. INITIALIZATION ---
+    function initialize() {
         document.getElementById('login-form').addEventListener('submit', handleLogin);
-        
-        // Branch selection
-        ui.branchSelect.addEventListener('change', (e) => {
-            ui.confirmBranchBtn.disabled = !e.target.value;
-        });
-        
         ui.confirmBranchBtn.addEventListener('click', () => {
             const selectedBranch = ui.branchSelect.value;
             if (selectedBranch) {
                 localStorage.setItem('selectedBranch', selectedBranch);
-                state.selectedBranch = selectedBranch;
-                ui.branchNameDisplay.textContent = selectedBranch;
-                showScreen('entry');
+                updateHeaderAndProceed();
             }
         });
-        
-        // Scanner controls
+        ui.branchSelect.addEventListener('change', (e) => { ui.confirmBranchBtn.disabled = !e.target.value; });
         ui.startScanBtn.addEventListener('click', startScanner);
         ui.stopScanBtn.addEventListener('click', stopScanner);
-        
-        // Manual entry
         document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
             e.preventDefault();
             const customerId = ui.manualCustomerId.value.trim();
             if (customerId) processUser(customerId, 'customerId');
         });
-        
-        // Guest player
         ui.addGuestBtn.addEventListener('click', addGuestPlayer);
-        
-        // Player count controls
-        document.getElementById('decrement-players').addEventListener('click', () => {
-            const current = parseInt(ui.playerCountInput.value);
-            if (current > 1) ui.playerCountInput.value = current - 1;
-        });
-        
-        document.getElementById('increment-players').addEventListener('click', () => {
-            const current = parseInt(ui.playerCountInput.value);
-            if (current < 20) ui.playerCountInput.value = current + 1;
-        });
-        
-        document.getElementById('generate-players-btn').addEventListener('click', () => {
-            const count = parseInt(ui.playerCountInput.value);
-            // Generate guest players based on count
-            state.currentOrder = [];
-            for (let i = 1; i <= count; i++) {
-                addGuestPlayer();
-            }
-            showScreen('order');
-        });
-        
-        // Action buttons
         ui.addAnotherPlayerBtn.addEventListener('click', () => showScreen('entry'));
         ui.confirmCheckinBtn.addEventListener('click', handleCheckInSubmit);
         ui.resetBtn.addEventListener('click', resetForNewOrder);
         ui.logoutBtn.addEventListener('click', handleLogout);
-    }
 
-    // --- 9. INITIALIZATION ---
-    function initialize() {
-        setupEventListeners();
-        
-        // Check if already logged in from previous session
         if (localStorage.getItem('staffPin')) {
             loadTickets();
             updateHeaderAndProceed();
         } else {
             showScreen('login');
         }
-        
-        // DEBUG: Add console logging
-        console.log('POS System initialized');
-        console.log('API URL:', CONFIG.scriptURL);
     }
 
-    // Start the application
     initialize();
+</script>
+</body>
+</html>
