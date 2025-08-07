@@ -30,6 +30,10 @@
     <div class="container">
         <h1>ระบบจัดการร้านค้า</h1>
         
+        <div id="staff-header" class="info-box hidden">
+            <p><strong>พนักงาน:</strong> <span id="staff-name-display"></span> | <strong>สาขา:</strong> <span id="branch-name-display"></span></p>
+        </div>
+
         <div id="login-section">
             <h2>พนักงานเข้าสู่ระบบ</h2>
             <form id="login-form">
@@ -65,13 +69,22 @@
         <div id="status-message"></div>
         
         <div id="order-section" class="section">
-            <h2 id="order-header">สร้างออเดอร์ใหม่</h2>
-            <div id="player-list" class="space-y-2 mb-4"></div>
-            <button id="add-player-btn" class="secondary mb-4">เพิ่มผู้เล่น</button>
-            <form id="order-details-form">
-                <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
-                <button type="submit" id="confirm-checkin-btn">ยืนยันการ Check-In</button>
-            </form>
+            <div id="customer-header" class="info-box mb-4"></div>
+            <div class="form-group">
+                <label for="table-input">ระบุโต๊ะ</label>
+                <input type="text" id="table-input" required placeholder="เช่น A1, B2">
+            </div>
+            <div class="form-group">
+                <label for="player-count-input">จำนวนผู้เล่นทั้งหมด</label>
+                <div class="flex items-center">
+                    <button type="button" id="decrement-players" class="secondary w-1/4">-</button>
+                    <input type="number" id="player-count-input" class="text-center" value="1" min="1">
+                    <button type="button" id="increment-players" class="secondary w-1/4">+</button>
+                </div>
+            </div>
+            <button id="generate-players-btn">ยืนยันจำนวน</button>
+            <div id="player-cards-container" class="mt-4"></div>
+            <button id="confirm-checkin-btn" class="mt-4 hidden">ยืนยันการ Check-In</button>
         </div>
         
         <div id="checkout-section" class="section"></div>
@@ -80,12 +93,13 @@
     </div>
 
     <script>
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCxTvdqPLQx-gx9x5dHY3jeNHDbrn3O0PeTVWqZauxXHGmRZRsAQUcwheicOIs0pmhlg/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxeGrZ_UwezhC8Qa-ekgnOf7yOJz_QMLqCdH5GzyxOSlYgonMQFw2azMVoHRDpG9s12RA/exec";
         
         let selectedBranch = null;
+        let staffName = null;
         let html5QrCode = null;
         let availableTickets = [];
-        let currentOrder = [];
+        let currentOrderPlayers = [];
 
         const allSections = document.querySelectorAll('.section');
         const loginSection = document.getElementById('login-section');
@@ -107,13 +121,15 @@
             allSections.forEach(section => section.style.display = 'none');
             statusMessage.style.display = 'none';
             resetBtn.style.display = 'none';
+            document.getElementById('staff-header').classList.add('hidden');
         }
 
         function showCustomerSearch() {
             hideAllSections();
+            document.getElementById('staff-header').classList.remove('hidden');
             entrySection.style.display = 'block';
             resetBtn.style.display = 'block';
-            currentOrder = [];
+            currentOrderPlayers = [];
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
             }
@@ -123,6 +139,7 @@
             hideAllSections();
             loginSection.style.display = 'block';
             localStorage.removeItem('selectedBranch');
+            localStorage.removeItem('staffName');
         }
 
         async function loadTickets() {
@@ -164,57 +181,102 @@
                     const memberResult = await memberRes.json();
                     if (!memberResult.success) throw new Error(memberResult.message);
                     
-                    const playerExists = currentOrder.some(p => p.userId === userId);
+                    const playerExists = currentOrderPlayers.some(p => p.userId === userId);
                     if (!playerExists) {
-                        currentOrder.push({ userId: userId, ...memberResult.data });
+                        currentOrderPlayers.push({ userId: userId, ...memberResult.data });
                     }
-                    displayOrderScreen();
+                    displayInitialOrderScreen(currentOrderPlayers[0]);
                 }
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
             }
         }
 
-        function displayOrderScreen() {
+        function displayInitialOrderScreen(firstPlayer) {
             hideAllSections();
+            document.getElementById('staff-header').classList.remove('hidden');
             orderSection.style.display = 'block';
             resetBtn.style.display = 'block';
-            const playerListDiv = document.getElementById('player-list');
-            playerListDiv.innerHTML = '';
+            document.getElementById('customer-header').innerHTML = `
+                <p><strong>ลูกค้า:</strong> ${firstPlayer.nickname} (ID: ${firstPlayer.customerId})</p>
+            `;
+            document.getElementById('player-count-input').value = currentOrderPlayers.length;
+            document.getElementById('player-cards-container').innerHTML = '';
+            document.getElementById('confirm-checkin-btn').style.display = 'none';
+        }
 
-            currentOrder.forEach((player, index) => {
+        document.getElementById('generate-players-btn').addEventListener('click', () => {
+            const playerCount = parseInt(document.getElementById('player-count-input').value, 10);
+            const container = document.getElementById('player-cards-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < playerCount; i++) {
+                const player = currentOrderPlayers[i] || { nickname: `ผู้เล่น ${i + 1} (Guest)`, customerId: 'N/A', userId: `GUEST_${i}` };
                 const card = document.createElement('div');
                 card.className = 'player-card';
                 card.innerHTML = `
-                    <p><strong>รหัสสมาชิก:</strong> ${player.customerId || 'N/A'}</p>
-                    <p><strong>ชื่อเล่น:</strong> ${player.nickname || 'N/A'}</p>
+                    <p class="font-bold">${player.nickname}</p>
                     <div class="form-group mt-2">
-                        <label for="ticket-select-${index}">เลือกตั๋ว</label>
-                        <select id="ticket-select-${index}" required></select>
+                        <label for="ticket-select-${i}">เลือกตั๋ว</label>
+                        <select id="ticket-select-${i}" required></select>
                     </div>
                     <div class="form-group">
-                        <label for="customer-type-${index}">ประเภทลูกค้า</label>
-                        <select id="customer-type-${index}" required>
+                        <label for="customer-type-${i}">ประเภทลูกค้า</label>
+                        <select id="customer-type-${i}" required>
                             <option value="นักศึกษา">นักศึกษา</option>
-                            <option value="วัยทำงาน">วัยทำงาน</option>
+                            <option value="วัยทำงาน" selected>วัยทำงาน</option>
                             <option value="ครอบครัว">ครอบครัว</option>
                         </select>
                     </div>
                 `;
-                playerListDiv.appendChild(card);
-
-                const ticketSelect = document.getElementById(`ticket-select-${index}`);
+                container.appendChild(card);
+                
+                const ticketSelect = document.getElementById(`ticket-select-${i}`);
                 availableTickets.forEach(ticket => {
                     const option = document.createElement('option');
                     option.value = JSON.stringify({ name: ticket.name, price: ticket.price });
                     option.textContent = `${ticket.name} (${ticket.price} บาท)`;
                     ticketSelect.appendChild(option);
                 });
+            }
+            document.getElementById('confirm-checkin-btn').style.display = 'block';
+        });
+
+        document.getElementById('confirm-checkin-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const btn = e.target;
+            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+
+            const playersData = currentOrderPlayers.map((player, index) => {
+                const ticketData = JSON.parse(document.getElementById(`ticket-select-${index}`).value);
+                return {
+                    userId: player.userId,
+                    ticketName: ticketData.name,
+                    price: ticketData.price,
+                    customerType: document.getElementById(`customer-type-${index}`).value
+                };
             });
-        }
+
+            const payload = {
+                action: 'checkIn',
+                branch: selectedBranch,
+                table: document.getElementById('table-input').value,
+                players: playersData
+            };
+
+            try {
+                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                showStatus('เช็คอินกลุ่มสำเร็จ!', true);
+                setTimeout(showCustomerSearch, 2000);
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-In';
+            }
+        });
 
         function displayCheckoutScreen(sessionData) {
             hideAllSections();
+            document.getElementById('staff-header').classList.remove('hidden');
             checkoutSection.style.display = 'block';
             resetBtn.style.display = 'block';
             
@@ -247,38 +309,6 @@
             document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
         }
         
-        document.getElementById('order-details-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('confirm-checkin-btn');
-            btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-
-            const playersData = currentOrder.map((player, index) => {
-                const ticketData = JSON.parse(document.getElementById(`ticket-select-${index}`).value);
-                return {
-                    userId: player.userId,
-                    ticketName: ticketData.name,
-                    price: ticketData.price,
-                    customerType: document.getElementById(`customer-type-${index}`).value
-                };
-            });
-
-            const payload = {
-                action: 'checkIn',
-                branch: selectedBranch,
-                table: document.getElementById('table-select').value,
-                players: playersData
-            };
-
-            try {
-                await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                showStatus('เช็คอินกลุ่มสำเร็จ!', true);
-                setTimeout(showCustomerSearch, 2000);
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false; btn.textContent = 'ยืนยันการ Check-In';
-            }
-        });
-        
         async function handleCheckOutSubmit(e) {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -295,7 +325,7 @@
                         action: 'checkOut',
                         orderId: orderId,
                         specialDiscount: specialDiscount,
-                        staffId: 'STAFF_PIN_HERE' // Placeholder for staff ID
+                        staffId: staffName
                     })
                 });
                 const result = await response.json();
@@ -327,12 +357,17 @@
                 const response = await fetch(loginUrl);
                 const result = await response.json();
                 if (result.success) {
+                    staffName = result.staffName;
+                    localStorage.setItem('staffName', staffName);
                     await loadTickets();
                     hideAllSections();
                     const savedBranch = localStorage.getItem('selectedBranch');
                     if (savedBranch) {
                         selectedBranch = savedBranch;
                         document.getElementById('branch-select').value = savedBranch;
+                        document.getElementById('staff-header').classList.remove('hidden');
+                        document.getElementById('staff-name-display').textContent = staffName;
+                        document.getElementById('branch-name-display').textContent = selectedBranch;
                         showCustomerSearch();
                     } else {
                         branchSection.style.display = 'block';
@@ -351,12 +386,16 @@
             selectedBranch = document.getElementById('branch-select').value;
             if (selectedBranch) {
                 localStorage.setItem('selectedBranch', selectedBranch);
+                document.getElementById('staff-header').classList.remove('hidden');
+                document.getElementById('staff-name-display').textContent = staffName;
+                document.getElementById('branch-name-display').textContent = selectedBranch;
                 showCustomerSearch();
             }
         });
 
         document.getElementById('add-player-btn').addEventListener('click', () => {
             hideAllSections();
+            document.getElementById('staff-header').classList.remove('hidden');
             entrySection.style.display = 'block';
         });
 
@@ -390,6 +429,17 @@
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
             }
+        });
+        
+        document.getElementById('decrement-players').addEventListener('click', () => {
+            const input = document.getElementById('player-count-input');
+            let count = parseInt(input.value, 10);
+            if (count > 1) input.value = count - 1;
+        });
+
+        document.getElementById('increment-players').addEventListener('click', () => {
+            const input = document.getElementById('player-count-input');
+            input.value = parseInt(input.value, 10) + 1;
         });
 
         resetBtn.addEventListener('click', showCustomerSearch);
