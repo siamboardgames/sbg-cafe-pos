@@ -247,6 +247,7 @@
     // --- 3. API HELPERS ---
     async function apiGet(action, params = {}) {
         try {
+            console.log('API GET:', action, params); // DEBUG
             const url = new URL(CONFIG.scriptURL);
             url.searchParams.append('action', action);
             for (const key in params) {
@@ -254,9 +255,16 @@
                     url.searchParams.append(key, params[key]);
                 }
             }
+            console.log('GET URL:', url.toString()); // DEBUG
+            
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+            console.log('GET Response status:', response.status); // DEBUG
+            
+            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+            
             const result = await response.json();
+            console.log('GET Result:', result); // DEBUG
+            
             if (!result.success) throw new Error(result.message || 'Unknown API error');
             return result;
         } catch (error) {
@@ -267,13 +275,19 @@
 
     async function apiPost(payload) {
         try {
+            console.log('API POST:', payload); // DEBUG
             const response = await fetch(CONFIG.scriptURL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+            console.log('POST Response status:', response.status); // DEBUG
+            
+            if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+            
             const result = await response.json();
+            console.log('POST Result:', result); // DEBUG
+            
             if (!result.success) throw new Error(result.message || 'Unknown API error');
             return result;
         } catch (error) {
@@ -484,15 +498,29 @@
         
         try {
             const pin = ui.staffPin.value.trim();
+            console.log('Attempting login with PIN:', pin); // DEBUG
+            
             if (!pin) {
                 throw new Error('กรุณากรอกรหัส PIN');
             }
 
-            // Fixed: Use POST method to match backend expectation
-            const result = await apiPost({ action: 'staffLogin', pin: pin });
+            // Try both GET and POST methods to see which works
+            console.log('Trying POST method first...'); // DEBUG
+            let result;
+            try {
+                result = await apiPost({ action: 'staffLogin', pin: pin });
+                console.log('POST result:', result); // DEBUG
+            } catch (postError) {
+                console.log('POST failed, trying GET:', postError); // DEBUG
+                result = await apiGet('staffLogin', { pin: pin });
+                console.log('GET result:', result); // DEBUG
+            }
+            
             state.staffPin = pin;
-            // Fixed: Since backend doesn't return staff name, use PIN as identifier
-            state.staffName = `Staff-${pin}`;
+            // Handle both possible response formats
+            state.staffName = result.data?.staffName || `Staff-${pin}`;
+            
+            console.log('Login successful, staff name:', state.staffName); // DEBUG
             
             // Save to localStorage
             localStorage.setItem('staffName', state.staffName);
@@ -502,7 +530,8 @@
             updateHeaderAndProceed();
             
         } catch (error) {
-            showStatus(error.message, false);
+            console.error('Login error:', error); // DEBUG
+            showStatus(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`, false);
         } finally {
             btn.disabled = false;
             btn.textContent = 'เข้าสู่ระบบ';
@@ -770,6 +799,10 @@
         } else {
             showScreen('login');
         }
+        
+        // DEBUG: Add console logging
+        console.log('POS System initialized');
+        console.log('API URL:', CONFIG.scriptURL);
     }
 
     // Start the application
