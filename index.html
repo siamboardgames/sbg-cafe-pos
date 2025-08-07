@@ -200,7 +200,7 @@
 <script>
     // --- 1. CONFIGURATION & STATE ---
     const CONFIG = {
-        scriptURL: "https://script.google.com/macros/s/AKfycbw3tDYOtGY7tRr0vysDWZ2tY2Ka7HfQW1G23dpuklbXIBfSvdjpFtVd2eAugS2gdxGnyw/exec"
+        scriptURL: "https://script.google.com/macros/s/AKfycbyqR-fgIbCGm5yitwXPTPaJKduQOqMOamgkM6JVBxAfYM3ssMLAsBeJb2_cW03uy61Ytw/exec"
     };
 
     const state = {
@@ -488,9 +488,11 @@
                 throw new Error('กรุณากรอกรหัส PIN');
             }
 
-            const result = await apiGet('staffLogin', { pin });
+            // Fixed: Use POST method to match backend expectation
+            const result = await apiPost({ action: 'staffLogin', pin: pin });
             state.staffPin = pin;
-            state.staffName = result.data?.staffName || 'พนักงาน';
+            // Fixed: Since backend doesn't return staff name, use PIN as identifier
+            state.staffName = `Staff-${pin}`;
             
             // Save to localStorage
             localStorage.setItem('staffName', state.staffName);
@@ -553,7 +555,7 @@
             
             if (type === 'customerId') {
                 const result = await apiGet('getUserIdByCustomerId', { customerId: identifier });
-                userIdToProcess = result.data?.userId;
+                userIdToProcess = result.userId; // Fixed: Direct access, not result.data.userId
                 if (!userIdToProcess) {
                     throw new Error('ไม่พบข้อมูลลูกค้า');
                 }
@@ -681,3 +683,94 @@
     }
 
     function handleLogout() {
+        localStorage.removeItem('staffName');
+        localStorage.removeItem('staffPin');
+        localStorage.removeItem('selectedBranch');
+        state.staffName = null;
+        state.staffPin = null;
+        state.selectedBranch = null;
+        state.currentOrder = [];
+        ui.staffPin.value = '';
+        ui.manualCustomerId.value = '';
+        ui.branchSelect.value = '';
+        stopScanner();
+        showScreen('login');
+    }
+
+    // --- 8. EVENT LISTENERS SETUP ---
+    function setupEventListeners() {
+        // Login form
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+        
+        // Branch selection
+        ui.branchSelect.addEventListener('change', (e) => {
+            ui.confirmBranchBtn.disabled = !e.target.value;
+        });
+        
+        ui.confirmBranchBtn.addEventListener('click', () => {
+            const selectedBranch = ui.branchSelect.value;
+            if (selectedBranch) {
+                localStorage.setItem('selectedBranch', selectedBranch);
+                state.selectedBranch = selectedBranch;
+                ui.branchNameDisplay.textContent = selectedBranch;
+                showScreen('entry');
+            }
+        });
+        
+        // Scanner controls
+        ui.startScanBtn.addEventListener('click', startScanner);
+        ui.stopScanBtn.addEventListener('click', stopScanner);
+        
+        // Manual entry
+        document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const customerId = ui.manualCustomerId.value.trim();
+            if (customerId) processUser(customerId, 'customerId');
+        });
+        
+        // Guest player
+        ui.addGuestBtn.addEventListener('click', addGuestPlayer);
+        
+        // Player count controls
+        document.getElementById('decrement-players').addEventListener('click', () => {
+            const current = parseInt(ui.playerCountInput.value);
+            if (current > 1) ui.playerCountInput.value = current - 1;
+        });
+        
+        document.getElementById('increment-players').addEventListener('click', () => {
+            const current = parseInt(ui.playerCountInput.value);
+            if (current < 20) ui.playerCountInput.value = current + 1;
+        });
+        
+        document.getElementById('generate-players-btn').addEventListener('click', () => {
+            const count = parseInt(ui.playerCountInput.value);
+            // Generate guest players based on count
+            state.currentOrder = [];
+            for (let i = 1; i <= count; i++) {
+                addGuestPlayer();
+            }
+            showScreen('order');
+        });
+        
+        // Action buttons
+        ui.addAnotherPlayerBtn.addEventListener('click', () => showScreen('entry'));
+        ui.confirmCheckinBtn.addEventListener('click', handleCheckInSubmit);
+        ui.resetBtn.addEventListener('click', resetForNewOrder);
+        ui.logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // --- 9. INITIALIZATION ---
+    function initialize() {
+        setupEventListeners();
+        
+        // Check if already logged in from previous session
+        if (localStorage.getItem('staffPin')) {
+            loadTickets();
+            updateHeaderAndProceed();
+        } else {
+            showScreen('login');
+        }
+    }
+
+    // Start the application
+    initialize();
