@@ -93,6 +93,12 @@
         </div>
         
         <div id="checkout-section" class="section"></div>
+
+        <div id="checkin-summary-section" class="section">
+            <h2>เช็คอินสำเร็จ!</h2>
+            <div id="summary-details" class="info-box"></div>
+            <button id="summary-done-btn" class="mt-4">เสร็จสิ้น</button>
+        </div>
         
         <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
     </div>
@@ -118,6 +124,7 @@
             entrySection: document.getElementById('entry-section'),
             orderSection: document.getElementById('order-section'),
             checkoutSection: document.getElementById('checkout-section'),
+            checkinSummarySection: document.getElementById('checkin-summary-section'),
             statusMessage: document.getElementById('status-message'),
             resetBtn: document.getElementById('reset-btn'),
             customerHeader: document.getElementById('customer-header'),
@@ -126,6 +133,8 @@
             generatePlayersBtn: document.getElementById('generate-players-btn'),
             playerCardsContainer: document.getElementById('player-cards-container'),
             confirmCheckinBtn: document.getElementById('confirm-checkin-btn'),
+            summaryDetails: document.getElementById('summary-details'),
+            summaryDoneBtn: document.getElementById('summary-done-btn'),
         };
 
         function showScreen(screen) {
@@ -144,6 +153,7 @@
                 case 'entry': ui.entrySection.style.display = 'block'; ui.resetBtn.style.display = 'block'; break;
                 case 'order': ui.orderSection.style.display = 'block'; ui.resetBtn.style.display = 'block'; break;
                 case 'checkout': ui.checkoutSection.style.display = 'block'; ui.resetBtn.style.display = 'block'; break;
+                case 'checkin-summary': ui.checkinSummarySection.style.display = 'block'; break;
             }
         }
 
@@ -302,8 +312,7 @@
                 };
 
                 const result = await apiPost(payload);
-                showStatus(`เช็คอินกลุ่มสำเร็จ! Order ID: ${result.orderId}`, true);
-                setTimeout(showCustomerSearch, 2500);
+                displayCheckinSummary(result.orderId, ui.tableInput.value, playersData.length);
 
             } catch (error) {
                 showStatus(`เช็คอินไม่สำเร็จ: ${error.message}`, false);
@@ -311,6 +320,21 @@
                 ui.confirmCheckinBtn.disabled = false;
                 ui.confirmCheckinBtn.textContent = 'ยืนยันการ Check-In ทั้งหมด';
             }
+        }
+        
+        function displayCheckinSummary(orderId, table, playerCount) {
+            showScreen('checkin-summary');
+            ui.summaryDetails.innerHTML = `
+                <p><strong>OrderID:</strong> ${orderId}</p>
+                <p><strong>โต๊ะ:</strong> ${table}</p>
+                <p><strong>จำนวนผู้เล่น:</strong> ${playerCount} คน</p>
+                <p><strong>เวลาเช็คอิน:</strong> ${new Date().toLocaleTimeString('th-TH')}</p>
+            `;
+        }
+
+        function showCustomerSearch() {
+            showScreen('entry');
+            state.currentOrder = [];
         }
 
         // --- Event Listeners ---
@@ -358,6 +382,7 @@
         ui.generatePlayersBtn.addEventListener('click', generatePlayerCards);
         ui.confirmCheckinBtn.addEventListener('click', handleCheckInSubmit);
         ui.resetBtn.addEventListener('click', showCustomerSearch);
+        ui.summaryDoneBtn.addEventListener('click', showCustomerSearch);
 
         showScreen('login');
     </script>
