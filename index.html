@@ -1,3 +1,85 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดการร้านค้า (POS)</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f8; margin: 0; padding: 1rem; color: #333; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
+        .container { width: 100%; max-width: 600px; margin: 1rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+        h1, h2, h3 { text-align: center; color: #1a202c; }
+        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: background-color 0.2s; }
+        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
+        button.secondary { background-color: #6c757d; }
+        button.danger { background-color: #dc3545; }
+        .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; }
+        #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; }
+        #status-message { text-align: center; padding: 1rem; border-radius: 8px; margin-top: 1rem; display: none; font-weight: 500;}
+        .status-success { background-color: #d4edda; color: #155724; }
+        .status-error { background-color: #f8d7da; color: #721c24; }
+        .player-card { background-color: #f8f9fa; border: 1px solid #dee2e6; padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; }
+    </style>
+</head>
+
+<body>
+    
+    <div class="container">
+        <h1>ระบบจัดการร้านค้า</h1>
+
+        <div id="login-section">
+            <h2>พนักงานเข้าสู่ระบบ</h2>
+            <form id="login-form">
+                <div class="form-group"><label for="staff-pin">กรอกรหัส PIN</label><input type="password" id="staff-pin" inputmode="numeric" placeholder="****" required></div>
+                <button type="submit" id="login-btn">เข้าสู่ระบบ</button>
+            </form>
+        </div>
+
+        <div id="branch-section" class="section">
+            <h2>กรุณาเลือกสาขา</h2>
+            <div class="form-group"><label for="branch-select">สาขา</label>
+                <select id="branch-select">
+                    <option value="">-- เลือกสาขา --</option>
+                    <option value="Bangna">Bangna</option>
+                    <option value="Ngamwongwan">Ngamwongwan</option>
+                    <option value="WestGate">WestGate</option>
+                    <option value="EastVille">EastVille</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="entry-section" class="section">
+
+            <h2>ค้นหาลูกค้า / สร้างออเดอร์ใหม่</h2>
+
+            <div id="qr-reader" style="width:100%;"></div>
+            <button id="start-scan-btn">สแกน QR Code</button>
+            <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
+            <form id="manual-entry-form">
+                <div class="form-group"><label for="manual-customerid">กรอกรหัสสมาชิก</label><input type="text" id="manual-customerid" placeholder="เช่น 08250001"></div>
+                <button type="submit">ค้นหาลูกค้า</button>
+            </form>
+        </div>
+
+        <div id="status-message"></div>
+
+        <div id="order-section" class="section">
+            <h2 id="order-header">สร้างออเดอร์ใหม่</h2>
+            <div id="player-list" class="space-y-2 mb-4"></div>
+            <button id="add-player-btn" class="secondary mb-4">เพิ่มผู้เล่น</button>
+            <form id="order-details-form">
+                <div class="form-group"><label for="table-select">ระบุโต๊ะ</label><input type="text" id="table-select" required placeholder="เช่น A1, B2"></div>
+                <button type="submit" id="confirm-checkin-btn">ยืนยันการ Check-In</button>
+            </form>
+        </div>
+        <div id="checkout-section" class="section"></div>
+        <button id="reset-btn" class="secondary" style="margin-top: 1rem; display:none;">กลับไปหน้าค้นหา</button>
+    </div>
+
 <script>
     // --- 1. CONFIGURATION & STATE ---
     const CONFIG = {
@@ -364,4 +446,5 @@
 
     initialize();
 </script>
+
 
