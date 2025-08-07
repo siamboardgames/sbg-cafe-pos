@@ -433,6 +433,7 @@
                 (errorMessage) => {}
             ).catch(err => showStatus("ไม่สามารถเปิดกล้องได้", false));
         });
+        
         document.getElementById('manual-entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -454,6 +455,7 @@
                 btn.disabled = false;
             }
         });
+
         document.getElementById('decrement-players').addEventListener('click', () => {
             const input = ui.playerCountInput;
             let count = parseInt(input.value, 10);
