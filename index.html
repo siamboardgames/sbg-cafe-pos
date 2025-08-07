@@ -337,6 +337,80 @@
             state.currentOrder = [];
         }
 
+        function calculateDuration(startTime) {
+            const start = new Date(startTime).getTime();
+            const now = new Date().getTime();
+            const diff = now - start;
+            const hours = Math.floor(diff / 3600000);
+            const minutes = Math.floor((diff % 3600000) / 60000);
+            return `${hours} ชั่วโมง ${minutes} นาที`;
+        }
+
+        function displayCheckoutScreen(sessionData) {
+            hideAllSections();
+            document.getElementById('staff-header').classList.remove('hidden');
+            checkoutSection.style.display = 'block';
+            resetBtn.style.display = 'block';
+            
+            let playerHtml = '';
+            sessionData.players.forEach(player => {
+                playerHtml += `<p><strong>- ${player.nickname}</strong> (${player.ticketName})</p>`;
+            });
+
+            const timePlayed = calculateDuration(sessionData.players[0].checkInTime);
+
+            checkoutSection.innerHTML = `
+                <h2>สรุปยอด Check-Out</h2>
+                <div class="info-box">
+                    <p><strong>OrderID:</strong> ${sessionData.orderId}</p>
+                    <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
+                    <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
+                    <h3 class="mt-2 font-bold">รายชื่อผู้เล่น:</h3>
+                    ${playerHtml}
+                </div>
+                <form id="checkout-form" class="mt-4">
+                    <div class="form-group">
+                        <label for="special-discount">ส่วนลดพิเศษ (บาท)</label>
+                        <input type="number" id="special-discount" value="0" min="0">
+                    </div>
+                    <button type="submit" class="danger">ยืนยันและคำนวณราคา</button>
+                </form>
+                <div id="final-price-display" class="mt-4 text-center hidden"></div>
+            `;
+
+            document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
+        }
+
+        async function handleCheckOutSubmit(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.disabled = true; btn.textContent = 'กำลังคำนวณ...';
+
+            const orderId = document.querySelector('#checkout-section .info-box p').textContent.split(': ')[1];
+            const specialDiscount = document.getElementById('special-discount').value;
+
+            try {
+                const result = await apiPost({
+                    action: 'checkOut',
+                    orderId: orderId,
+                    specialDiscount: specialDiscount,
+                    staffId: state.staffName
+                });
+
+                const finalPriceDiv = document.getElementById('final-price-display');
+                finalPriceDiv.innerHTML = `
+                    <p>โปรโมชั่นที่ใช้: ${result.data.promotion}</p>
+                    <h3 class="text-2xl font-bold">ยอดชำระสุทธิ: ${result.data.finalPrice.toFixed(2)} บาท</h3>
+                `;
+                finalPriceDiv.style.display = 'block';
+                btn.style.display = 'none';
+                
+            } catch (error) {
+                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+                btn.disabled = false; btn.textContent = 'ยืนยันและคำนวณราคา';
+            }
+        }
+
         // --- Event Listeners ---
         document.getElementById('login-form').addEventListener('submit', handleLogin);
         document.getElementById('branch-select').addEventListener('change', (e) => {
@@ -359,7 +433,6 @@
                 (errorMessage) => {}
             ).catch(err => showStatus("ไม่สามารถเปิดกล้องได้", false));
         });
-
         document.getElementById('manual-entry-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = e.target.querySelector('button');
@@ -381,7 +454,6 @@
                 btn.disabled = false;
             }
         });
-
         document.getElementById('decrement-players').addEventListener('click', () => {
             const input = ui.playerCountInput;
             let count = parseInt(input.value, 10);
