@@ -73,7 +73,7 @@
                         <div class="mt-4">
                              <button id="refresh-btn" class="w-full p-2 bg-gray-200 text-gray-700 hover:bg-gray-300 rounded-lg font-bold flex items-center justify-center">
                                 <svg id="refresh-icon" class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5" />
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5m0-10h5v5M4 15h5v-5"/>
                                 </svg>
                                 <svg id="refresh-spinner" class="w-5 h-5 mr-2 animate-spin hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -86,7 +86,7 @@
                 </div>
             </div>
             <div id="registration-section" class="hidden p-6">
-                 <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
+                <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
                 <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
                 <form id="registration-form">
                     <div class="form-group"><label for="reg-nickname">ชื่อสมาชิก (ชื่อเล่น)</label><input type="text" id="reg-nickname" required></div>
@@ -99,184 +99,224 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const liffId = '2007836924-1X8GmJKj';
-            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyEKg8OYc9jcA3SnO5WZpqKQ2ARmxOmXXTWwQsRxtNOuBA_us8Kfhn7yqjv5WCNh-Rcug/exec';
+            // Refactored: Centralized configuration
+            const CONFIG = {
+                liffId: '2007836924-1X8GmJKj',
+                gasUrl: 'https://script.google.com/macros/s/AKfycbxeGrZ_UwezhC8Qa-ekgnOf7yOJz_QMLqCdH5GzyxOSlYgonMQFw2azMVoHRDpG9s12RA/exec',
+            };
+
+            // Refactored: Cached UI elements to avoid repeated lookups
+            const ui = {
+                loadingState: document.getElementById('loading-state'),
+                errorState: document.getElementById('error-state'),
+                errorMessage: document.getElementById('error-message'),
+                mainContent: document.getElementById('main-content'),
+                userPicture: document.getElementById('user-picture'),
+                userName: document.getElementById('user-name'),
+                membershipStatus: document.getElementById('membership-status'),
+                memberAppSection: document.getElementById('member-app-section'),
+                registrationSection: document.getElementById('registration-section'),
+                registrationForm: document.getElementById('registration-form'),
+                tabsContainer: document.getElementById('tabs-container'),
+                qrCodeContainer: document.getElementById('qr-code-container'),
+                qrCustomerName: document.getElementById('qr-customer-name'),
+                qrCustomerId: document.getElementById('qr-customer-id'),
+                sessionActiveDetails: document.getElementById('session-active-details'),
+                sessionInactiveMessage: document.getElementById('session-inactive-message'),
+                timerDisplay: document.getElementById('timer-display'),
+                branchDisplay: document.getElementById('branch-display'),
+                tableDisplay: document.getElementById('table-display'),
+                profileDisplay: document.getElementById('profile-display'),
+                profileEditForm: document.getElementById('profile-edit-form'),
+                refreshBtn: document.getElementById('refresh-btn'),
+                refreshIcon: document.getElementById('refresh-icon'),
+                refreshSpinner: document.getElementById('refresh-spinner'),
+            };
 
             let userProfile = null;
             let sessionTimer = null;
-
-            const refreshBtn = document.getElementById('refresh-btn');
-            const refreshIcon = document.getElementById('refresh-icon');
-            const refreshSpinner = document.getElementById('refresh-spinner');
-
+            
+            // --- Core Logic ---
             async function main() {
                 try {
-                    await liff.init({ liffId: liffId });
-                    if (!liff.isLoggedIn()) { liff.login(); return; }
+                    await liff.init({ liffId: CONFIG.liffId });
+                    if (!liff.isLoggedIn()) {
+                        liff.login();
+                        return; // Stop execution until user logs in
+                    }
                     userProfile = await liff.getProfile();
-                    updateUI(userProfile);
-                    await getUserInitialData(userProfile.userId);
-                } catch (error) { showErrorState(`<b>LIFF Error:</b> ${error.message}.`); }
+                    updateUserHeader(userProfile);
+                    await fetchAndDisplayInitialData(userProfile.userId);
+                } catch (error) {
+                    showErrorState(`<b>LIFF Error:</b> ${error.message}.`);
+                }
             }
 
-            async function getUserInitialData(userId) {
-                const statusElement = document.getElementById('membership-status');
+            async function fetchAndDisplayInitialData(userId) {
+                showSection('loading');
                 try {
-                    const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getUserInitialData');
-                    url.searchParams.append('userId', userId);
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Network error: ${response.status}`);
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.message);
-
-                    const data = result.data;
-                    if (data.isMember) {
-                        statusElement.textContent = 'Active Member';
-                        statusElement.className = 'text-sm font-medium text-green-500';
-                        showMemberApp(userId, data.activeSession, data.memberInfo);
+                    const response = await apiGet('getUserInitialData', { userId });
+                    const { isMember, activeSession, memberInfo } = response.data;
+                    
+                    if (isMember) {
+                        setMembershipStatus('Active Member', 'text-green-500');
+                        showMemberApp(userId, activeSession, memberInfo);
                     } else {
-                        statusElement.textContent = 'Not a Member';
-                        statusElement.className = 'text-sm font-medium text-yellow-600';
-                        showRegistrationForm();
+                        setMembershipStatus('Not a Member', 'text-yellow-600');
+                        showSection('registration');
                     }
                 } catch (error) {
-                    statusElement.textContent = `Status Check Failed: ${error.message}`;
-                    statusElement.className = 'text-sm font-medium text-red-500';
-                    console.error("Error getting initial data:", error);
+                    setMembershipStatus(`Status Check Failed`, 'text-red-500');
+                    showErrorState(error.message);
+                }
+            }
+
+            // --- UI Update Functions ---
+            function updateUserHeader(profile) {
+                if (profile.pictureUrl) ui.userPicture.src = profile.pictureUrl;
+                ui.userName.textContent = profile.displayName;
+            }
+
+            function setMembershipStatus(text, colorClass) {
+                ui.membershipStatus.textContent = text;
+                ui.membershipStatus.className = `text-sm font-medium ${colorClass}`;
+            }
+
+            function showMemberApp(userId, activeSession, memberInfo) {
+                setupTabs();
+                updatePlayingStatus(activeSession);
+                updateQrCodeData(memberInfo);
+                generateQrCode(userId);
+                switchTab('qr-code-view');
+                showSection('member');
+            }
+
+            function updatePlayingStatus(activeSession) {
+                if (sessionTimer) clearInterval(sessionTimer);
+                if (activeSession) {
+                    ui.sessionActiveDetails.style.display = 'block';
+                    ui.sessionInactiveMessage.style.display = 'none';
+                    ui.branchDisplay.textContent = activeSession.branch;
+                    ui.tableDisplay.textContent = activeSession.table;
+                    startTimer(activeSession.checkInTime);
+                } else {
+                    ui.sessionActiveDetails.style.display = 'none';
+                    ui.sessionInactiveMessage.style.display = 'block';
+                }
+            }
+
+            function updateQrCodeData(memberInfo) {
+                if (memberInfo) {
+                    ui.qrCustomerName.textContent = memberInfo.nickname || '-';
+                    ui.qrCustomerId.textContent = memberInfo.customerId || '-';
                 }
             }
 
             function startTimer(checkInTime) {
-                if (sessionTimer) clearInterval(sessionTimer);
                 const startTime = new Date(checkInTime).getTime();
                 sessionTimer = setInterval(() => {
-                    const now = new Date().getTime();
-                    const distance = now - startTime;
-                    const hours = Math.floor(distance / (3600000));
-                    const minutes = Math.floor((distance % (3600000)) / (60000));
-                    const seconds = Math.floor((distance % (60000)) / 1000);
-                    document.getElementById('timer-display').textContent = ('0' + hours).slice(-2) + ":" + ('0' + minutes).slice(-2) + ":" + ('0' + seconds).slice(-2);
+                    const elapsed = new Date().getTime() - startTime;
+                    const hours = String(Math.floor(elapsed / 3600000)).padStart(2, '0');
+                    const minutes = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0');
+                    const seconds = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
+                    ui.timerDisplay.textContent = `${hours}:${minutes}:${seconds}`;
                 }, 1000);
+            }
+
+            // Refactored: Central function to manage which main view is visible
+            function showSection(section) {
+                ui.loadingState.style.display = 'none';
+                ui.errorState.style.display = 'none';
+                ui.mainContent.style.display = 'none';
+
+                if (section === 'loading') {
+                    ui.loadingState.style.display = 'block';
+                } else if (section === 'error') {
+                    ui.errorState.style.display = 'block';
+                } else {
+                    ui.mainContent.style.display = 'block';
+                    ui.memberAppSection.style.display = section === 'member' ? 'block' : 'none';
+                    ui.registrationSection.style.display = section === 'registration' ? 'block' : 'none';
+                }
+            }
+
+            function showErrorState(message) {
+                ui.errorMessage.innerHTML = message;
+                showSection('error');
+            }
+
+            // --- Tabs & Content ---
+            function setupTabs() {
+                ui.tabsContainer.innerHTML = `
+                    <div id="tab-qr" class="tab-button">QR Code</div>
+                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
+                    <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>`;
+                document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
+                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
+                document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
             }
 
             function switchTab(activeTabId) {
                 document.querySelectorAll('.tab-button').forEach(tab => tab.classList.remove('active'));
                 document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
+                
                 const newActiveTab = document.getElementById(`tab-${activeTabId.replace('-view', '')}`);
                 if (newActiveTab) newActiveTab.classList.add('active');
+                
                 const newActiveView = document.getElementById(activeTabId);
                 if (newActiveView) newActiveView.style.display = 'block';
+                
                 if (activeTabId === 'profile-info-view') {
                     loadProfileInfo();
                 }
             }
-
-            function showMemberApp(userId, activeSession, memberInfo) {
-                document.getElementById('registration-section').style.display = 'none';
-                document.getElementById('member-app-section').style.display = 'block';
-                const tabsContainer = document.getElementById('tabs-container');
-                tabsContainer.innerHTML = `
-                    <div id="tab-qr" class="tab-button">QR Code</div>
-                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
-                    <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
-                `;
-                document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
-                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
-                document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
-                
-                const activeDetails = document.getElementById('session-active-details');
-                const inactiveMessage = document.getElementById('session-inactive-message');
-                if (activeSession) {
-                    inactiveMessage.style.display = 'none';
-                    activeDetails.style.display = 'block';
-                    document.getElementById('branch-display').textContent = activeSession.branch;
-                    document.getElementById('table-display').textContent = activeSession.table;
-                    startTimer(activeSession.checkInTime);
-                } else {
-                    activeDetails.style.display = 'none';
-                    inactiveMessage.style.display = 'block';
-                }
-
-                if(memberInfo) {
-                    document.getElementById('qr-customer-name').textContent = memberInfo.nickname || '-';
-                    document.getElementById('qr-customer-id').textContent = memberInfo.customerId || '-';
-                }
-
-                switchTab('qr-code-view'); 
-                generateQrCode(userId);
-            }
-
-            function updateUI(profile) {
-                document.getElementById('loading-state').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-                if (profile.pictureUrl) document.getElementById('user-picture').src = profile.pictureUrl;
-                document.getElementById('user-name').textContent = profile.displayName;
-            }
-
-            function formatDate(dateString) {
-                if (!dateString || isNaN(new Date(dateString))) return '-';
-                const date = new Date(dateString);
-                const day = ('0' + date.getUTCDate()).slice(-2);
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const month = monthNames[date.getUTCMonth()];
-                const year = date.getUTCFullYear();
-                return `${day} ${month} ${year}`;
-            }
-
-            async function loadProfileInfo() {
-                const displayDiv = document.getElementById('profile-display');
-                displayDiv.innerHTML = '<p>Loading info...</p>';
-                try {
-                    const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getMemberInfo');
-                    url.searchParams.append('userId', userProfile.userId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (result.success) {
-                        displayDiv.innerHTML = `
-                            <div class="form-group"><label>รหัสสมาชิก</label><p class="p-2 bg-gray-100 rounded-md font-bold text-lg">${result.data.customerId || '-'}</p></div>
-                            <div class="form-group"><label>ชื่อเล่น</label><p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p></div>
-                            <div class="form-group"><label>ชื่อจริง</label><p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p></div>
-                            <div class="form-group"><label>นามสกุล</label><p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p></div>
-                            <div class="form-group"><label>วันเกิด</label><p class="p-2 bg-gray-100 rounded-md">${formatDate(result.data.birthdate)}</p></div>
-                            <div class="form-group"><label>เพศ</label><p class="p-2 bg-gray-100 rounded-md">${result.data.gender || '-'}</p></div>
-                            <div class="form-group"><label>เบอร์โทรศัพท์</label><p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p></div>
-                            <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
-                        `;
-                        document.getElementById('edit-btn').addEventListener('click', () => showEditForm(result.data));
-                    } else { throw new Error(result.message); }
-                } catch (error) { displayDiv.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`; }
-            }
             
-            refreshBtn.addEventListener('click', async () => {
-                if (!userProfile) return;
-                refreshIcon.classList.add('hidden');
-                refreshSpinner.classList.remove('hidden');
+            function generateQrCode(text) {
+                ui.qrCodeContainer.innerHTML = '';
                 try {
-                    await getUserInitialData(userProfile.userId);
+                    new QRCode(ui.qrCodeContainer, { text, width: 256, height: 256 });
                 } catch (error) {
-                    console.error("Refresh failed", error);
-                } finally {
-                    refreshIcon.classList.remove('hidden');
-                    refreshSpinner.classList.add('hidden');
+                    ui.qrCodeContainer.innerHTML = '<p class="text-red-500">Could not generate QR code.</p>';
                 }
-            });
-            
-            function showRegistrationForm() {
-                document.getElementById('member-app-section').style.display = 'none';
-                document.getElementById('registration-section').style.display = 'block';
             }
-            function generateQrCode(userId) {
-                const qrContainer = document.getElementById('qr-code-container');
-                qrContainer.innerHTML = '';
-                try { new QRCode(qrContainer, { text: userId, width: 256, height: 256 }); }
-                catch (error) { showErrorState('Could not generate the QR code.'); }
+
+            // --- Profile Info & Edit ---
+            async function loadProfileInfo() {
+                ui.profileDisplay.innerHTML = '<p>Loading info...</p>';
+                try {
+                    const response = await apiGet('getMemberInfo', { userId: userProfile.userId });
+                    renderProfileDisplay(response.data);
+                } catch (error) {
+                    ui.profileDisplay.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`;
+                }
             }
-            function showEditForm(data) {
-                document.getElementById('profile-display').style.display = 'none';
-                const formDiv = document.getElementById('profile-edit-form');
-                formDiv.innerHTML = `
+
+            function renderProfileDisplay(data) {
+                // Changed: Use local date methods for safety.
+                const formatDate = (dateString) => {
+                    if (!dateString) return '-';
+                    const date = new Date(dateString);
+                    return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+                };
+
+                ui.profileDisplay.innerHTML = `
+                    <div class="form-group"><label>รหัสสมาชิก</label><p class="p-2 bg-gray-100 rounded-md font-bold text-lg">${data.customerId || '-'}</p></div>
+                    <div class="form-group"><label>ชื่อเล่น</label><p class="p-2 bg-gray-100 rounded-md">${data.nickname || '-'}</p></div>
+                    <div class="form-group"><label>ชื่อจริง</label><p class="p-2 bg-gray-100 rounded-md">${data.firstname || '-'}</p></div>
+                    <div class="form-group"><label>นามสกุล</label><p class="p-2 bg-gray-100 rounded-md">${data.lastname || '-'}</p></div>
+                    <div class="form-group"><label>วันเกิด</label><p class="p-2 bg-gray-100 rounded-md">${formatDate(data.birthdate)}</p></div>
+                    <div class="form-group"><label>เพศ</label><p class="p-2 bg-gray-100 rounded-md">${data.gender || '-'}</p></div>
+                    <div class="form-group"><label>เบอร์โทรศัพท์</label><p class="p-2 bg-gray-100 rounded-md">${data.tel || '-'}</p></div>
+                    <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
+                `;
+                document.getElementById('edit-btn').addEventListener('click', () => renderProfileEditForm(data));
+                ui.profileDisplay.style.display = 'block';
+                ui.profileEditForm.style.display = 'none';
+            }
+
+            function renderProfileEditForm(data) {
+                ui.profileDisplay.style.display = 'none';
+                ui.profileEditForm.innerHTML = `
                     <div class="form-group"><label for="edit-nickname">ชื่อเล่น</label><input type="text" id="edit-nickname" value="${data.nickname || ''}" required></div>
                     <div class="form-group"><label for="edit-firstname">ชื่อจริง</label><input type="text" id="edit-firstname" value="${data.firstname || ''}" required></div>
                     <div class="form-group"><label for="edit-lastname">นามสกุล</label><input type="text" id="edit-lastname" value="${data.lastname || ''}" required></div>
@@ -290,83 +330,122 @@
                         </select>
                     </div>
                     <div class="form-group"><label for="edit-tel">เบอร์โทรศัพท์</label><input type="tel" id="edit-tel" value="${data.tel || ''}" required></div>
+                    <div id="save-feedback" class="text-sm text-center mb-2"></div>
                     <button id="save-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">บันทึก</button>
                     <button id="cancel-btn" type="button" class="w-full mt-2 p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold">ยกเลิก</button>
                 `;
-                formDiv.style.display = 'block';
+                ui.profileEditForm.style.display = 'block';
                 document.getElementById('save-btn').addEventListener('click', handleSaveInfo);
                 document.getElementById('cancel-btn').addEventListener('click', () => {
-                    formDiv.style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
+                    ui.profileEditForm.style.display = 'none';
+                    ui.profileDisplay.style.display = 'block';
                 });
             }
-            async function handleSaveInfo() {
-                const saveBtn = document.getElementById('save-btn');
+
+            // --- API & Event Handlers ---
+
+            // Refactored: Generic function for GET requests to Google Apps Script
+            async function apiGet(action, params = {}) {
+                const url = new URL(CONFIG.gasUrl);
+                url.searchParams.append('action', action);
+                for (const key in params) {
+                    url.searchParams.append(key, params[key]);
+                }
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'An unknown API error occurred.');
+                return result;
+            }
+
+            // Refactored: Generic function for POST requests to Google Apps Script
+            async function apiPost(payload) {
+                // Changed: Removed 'mode: no-cors'. This is the critical fix.
+                const response = await fetch(CONFIG.gasUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS quirk
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+                const result = await response.json();
+                if (!result.success) throw new Error(result.message || 'An unknown API error occurred.');
+                return result;
+            }
+
+            async function handleRefresh() {
+                if (!userProfile) return;
+                ui.refreshIcon.classList.add('hidden');
+                ui.refreshSpinner.classList.remove('hidden');
+                try {
+                    const response = await apiGet('getUserInitialData', { userId: userProfile.userId });
+                    updatePlayingStatus(response.data.activeSession);
+                } catch (error) {
+                    alert('Refresh failed: ' + error.message);
+                } finally {
+                    ui.refreshIcon.classList.remove('hidden');
+                    ui.refreshSpinner.classList.add('hidden');
+                }
+            }
+
+            async function handleSaveInfo(e) {
+                const saveBtn = e.target;
+                const feedbackDiv = document.getElementById('save-feedback');
                 saveBtn.disabled = true;
                 saveBtn.textContent = 'กำลังบันทึก...';
-                const payload = {
-                    action: 'updateMemberInfo', userId: userProfile.userId,
-                    nickname: document.getElementById('edit-nickname').value,
-                    firstname: document.getElementById('edit-firstname').value,
-                    lastname: document.getElementById('edit-lastname').value,
-                    birthdate: document.getElementById('edit-birthdate').value,
-                    gender: document.getElementById('edit-gender').value,
-                    tel: document.getElementById('edit-tel').value
-                };
+                feedbackDiv.textContent = '';
+                
                 try {
-                    await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                    document.getElementById('profile-edit-form').style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
-                    loadProfileInfo();
+                    const payload = {
+                        action: 'updateMemberInfo', userId: userProfile.userId,
+                        nickname: document.getElementById('edit-nickname').value,
+                        firstname: document.getElementById('edit-firstname').value,
+                        lastname: document.getElementById('edit-lastname').value,
+                        birthdate: document.getElementById('edit-birthdate').value,
+                        gender: document.getElementById('edit-gender').value,
+                        tel: document.getElementById('edit-tel').value
+                    };
+                    // Changed: Now uses the reliable apiPost function
+                    await apiPost(payload);
+                    await loadProfileInfo(); // Reload fresh data after successful save
                 } catch (error) {
-                    alert('Failed to save. Please try again.');
+                    feedbackDiv.textContent = `Failed to save: ${error.message}`;
+                    feedbackDiv.className = 'text-sm text-center mb-2 text-red-600';
                     saveBtn.disabled = false;
                     saveBtn.textContent = 'บันทึก';
                 }
             }
-            document.getElementById('registration-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const submitBtn = document.getElementById('reg-submit-btn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'กำลังบันทึก...';
 
-                const url = new URL(MASTER_SCRIPT_URL);
-                url.searchParams.append('action', 'registerMember');
-                url.searchParams.append('userId', userProfile.userId);
-                url.searchParams.append('displayName', userProfile.displayName);
-                url.searchParams.append('pictureUrl', userProfile.pictureUrl || '');
-                url.searchParams.append('nickname', document.getElementById('reg-nickname').value);
-                url.searchParams.append('tel', document.getElementById('reg-tel').value);
+            async function handleRegistration(e) {
+                e.preventDefault();
+                const submitBtn = e.target.querySelector('button[type="submit"]');
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'กำลังลงทะเบียน...';
 
                 try {
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.message);
-                    
-                    showMemberApp(userProfile.userId, null, { 
-                        nickname: document.getElementById('reg-nickname').value, 
-                        customerId: result.customerId 
-                    });
-                    document.getElementById('membership-status').textContent = 'Active Member';
-                    document.getElementById('membership-status').className = 'text-sm font-medium text-green-500';
-
+                    const payload = {
+                        action: 'registerMember',
+                        userId: userProfile.userId,
+                        displayName: userProfile.displayName,
+                        pictureUrl: userProfile.pictureUrl || '',
+                        nickname: document.getElementById('reg-nickname').value,
+                        tel: document.getElementById('reg-tel').value
+                    };
+                    // Changed: Uses apiPost and re-fetches data on success
+                    await apiPost(payload);
+                    await fetchAndDisplayInitialData(userProfile.userId);
                 } catch (error) {
                     showErrorState('Registration failed: ' + error.message);
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'ลงทะเบียน';
                 }
-            });
-            function showErrorState(message) {
-                document.getElementById('loading-state').style.display = 'none';
-                const errorState = document.getElementById('error-state');
-                errorState.querySelector('#error-message').innerHTML = message;
-                errorState.style.display = 'block';
             }
 
+            // Bind initial event listeners
+            ui.refreshBtn.addEventListener('click', handleRefresh);
+            ui.registrationForm.addEventListener('submit', handleRegistration);
+            
             main();
         });
     </script>
 </body>
 </html>
-
-
