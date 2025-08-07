@@ -57,14 +57,13 @@
             <button id="start-scan-btn">สแกน QR Code</button>
             <p style="text-align: center; margin: 1rem 0; font-weight: bold;">หรือ</p>
             <form id="manual-entry-form">
-                <div class="form-group"><label for="manual-customerid">กรอกรหัสสมาชิก</label><input type="text" id="manual-customerid" placeholder="เช่น 07250001"></div>
+                <div class="form-group"><label for="manual-customerid">กรอกรหัสสมาชิก</label><input type="text" id="manual-customerid" placeholder="เช่น 08250001"></div>
                 <button type="submit">ค้นหาลูกค้า</button>
             </form>
         </div>
 
         <div id="status-message"></div>
         
-        <!-- New Order Management Section -->
         <div id="order-section" class="section">
             <h2 id="order-header">สร้างออเดอร์ใหม่</h2>
             <div id="player-list" class="space-y-2 mb-4"></div>
@@ -81,12 +80,12 @@
     </div>
 
     <script>
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyU6zh36UKfbNesfZxuKGd3_jWpb23iwwT_DMaav3ZN9N2KKVmvX45W83lw92B_NQyf5Q/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyCxTvdqPLQx-gx9x5dHY3jeNHDbrn3O0PeTVWqZauxXHGmRZRsAQUcwheicOIs0pmhlg/exec";
         
         let selectedBranch = null;
         let html5QrCode = null;
         let availableTickets = [];
-        let currentOrder = []; // Array to hold players for the current order
+        let currentOrder = [];
 
         const allSections = document.querySelectorAll('.section');
         const loginSection = document.getElementById('login-section');
@@ -114,7 +113,7 @@
             hideAllSections();
             entrySection.style.display = 'block';
             resetBtn.style.display = 'block';
-            currentOrder = []; // Clear the current order
+            currentOrder = [];
             if (html5QrCode && html5QrCode.isScanning) {
                 html5QrCode.stop().catch(err => console.error("Failed to stop scanner", err));
             }
@@ -159,10 +158,8 @@
                 if (!sessionResult.success) throw new Error(sessionResult.message);
 
                 if (sessionResult.status === 'found') {
-                    // CHECK-OUT FLOW
                     displayCheckoutScreen(sessionResult.data);
                 } else {
-                    // CHECK-IN FLOW: Add player to the current order
                     const memberRes = await fetch(`${MASTER_SCRIPT_URL}?action=getMemberInfo&userId=${userId}`);
                     const memberResult = await memberRes.json();
                     if (!memberResult.success) throw new Error(memberResult.message);
@@ -287,7 +284,7 @@
             const btn = e.target.querySelector('button');
             btn.disabled = true; btn.textContent = 'กำลังคำนวณ...';
 
-            const orderId = document.querySelector('.info-box p').textContent.split(': ')[1];
+            const orderId = document.querySelector('#checkout-section .info-box p').textContent.split(': ')[1];
             const specialDiscount = document.getElementById('special-discount').value;
 
             try {
@@ -310,7 +307,7 @@
                     <h3 class="text-2xl font-bold">ยอดชำระสุทธิ: ${result.data.finalPrice.toFixed(2)} บาท</h3>
                 `;
                 finalPriceDiv.style.display = 'block';
-                btn.style.display = 'none'; // Hide checkout button after calculation
+                btn.style.display = 'none';
                 
             } catch (error) {
                 showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
@@ -401,4 +398,3 @@
     </script>
 </body>
 </html>
-
