@@ -125,9 +125,6 @@
                     url.searchParams.append('action', 'getUserInitialData');
                     url.searchParams.append('userId', userId);
                     const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                    }
                     const result = await response.json();
                     if (!result.success) throw new Error(result.message);
 
@@ -142,11 +139,7 @@
                         showRegistrationForm();
                     }
                 } catch (error) {
-                    let friendlyMessage = `Status Check Failed: ${error.message}.`;
-                    if (error.message.includes('Failed to fetch')) {
-                        friendlyMessage += '<br><br>Please check your internet connection and ensure the script is deployed correctly (accessible by "Anyone").';
-                    }
-                    statusElement.innerHTML = friendlyMessage;
+                    statusElement.textContent = `Status Check Failed: ${error.message}`;
                     statusElement.className = 'text-sm font-medium text-red-500';
                     console.error("Error getting initial data:", error);
                 }
@@ -329,6 +322,7 @@
                     saveBtn.textContent = 'บันทึก';
                 }
             }
+            
             document.getElementById('registration-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const submitBtn = document.getElementById('reg-submit-btn');
@@ -347,13 +341,22 @@
                     const response = await fetch(url);
                     const result = await response.json();
                     if (!result.success) throw new Error(result.message);
-                    await getUserInitialData(userProfile.userId);
+                    
+                    // [FIXED] Directly transition to the member view after successful registration
+                    showMemberApp(userProfile.userId, null, { 
+                        nickname: document.getElementById('reg-nickname').value, 
+                        customerId: result.customerId 
+                    });
+                    document.getElementById('membership-status').textContent = 'Active Member';
+                    document.getElementById('membership-status').className = 'text-sm font-medium text-green-500';
+
                 } catch (error) {
                     showErrorState('Registration failed: ' + error.message);
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'ลงทะเบียน';
                 }
             });
+
             function showErrorState(message) {
                 document.getElementById('loading-state').style.display = 'none';
                 const errorState = document.getElementById('error-state');
@@ -366,4 +369,3 @@
     </script>
 </body>
 </html>
-
