@@ -4,109 +4,93 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบจัดการร้านค้า (POS)</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
-        body { 
-            font-family: 'Sarabun', sans-serif; 
-            background-color: #f4f4f8; 
-            margin: 0; 
-            padding: 1rem; 
-            color: #333; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+        :root {
+            --primary-color: #007bff;
+            --primary-hover: #0056b3;
+            --secondary-color: #6c757d;
+            --secondary-hover: #5a6268;
+            --danger-color: #dc3545;
+            --danger-hover: #c82333;
+            --light-gray: #f4f4f8;
+            --dark-text: #1a202c;
+            --border-color: #dee2e6;
+        }
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--light-gray);
+            margin: 0;
+            padding: 1rem;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             min-height: 100vh;
         }
-        .container { 
-            width: 100%; 
-            max-width: 600px; 
-            margin: 1rem auto; 
-            background: white; 
-            padding: 2rem; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1); 
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 1rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
         }
-        h1, h2, h3 { text-align: center; color: #1a202c; }
-        .section { display: none; margin-top: 1.5rem; border-top: 1px solid #eee; padding-top: 1.5rem; }
+        h1, h2, h3 { text-align: center; color: var(--dark-text); }
+        .section, #login-section {
+             display: none; 
+             margin-top: 1.5rem; 
+             border-top: 1px solid #eee; 
+             padding-top: 1.5rem; 
+        }
         .form-group { margin-bottom: 1rem; }
         label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input, select { 
-            width: 100%; 
-            padding: 10px; 
-            border: 1px solid #ddd; 
-            border-radius: 6px; 
-            box-sizing: border-box; 
-            font-size: 1rem; 
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
         }
-        button { 
-            width: 100%; 
-            padding: 12px; 
-            background-color: #007bff; 
-            color: white; 
-            border: none; 
-            border-radius: 8px; 
-            font-size: 1rem; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: background-color 0.2s; 
+        button {
+            width: 100%;
+            padding: 12px;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            background-color: var(--primary-color);
         }
-        button:hover { background-color: #0056b3; }
+        button:hover { background-color: var(--primary-hover); }
         button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        button.secondary { background-color: #6c757d; }
-        button.secondary:hover { background-color: #5a6268; }
-        button.danger { background-color: #dc3545; }
-        button.danger:hover { background-color: #c82333; }
+        button.secondary { background-color: var(--secondary-color); }
+        button.secondary:hover { background-color: var(--secondary-hover); }
+        button.danger { background-color: var(--danger-color); }
+        button.danger:hover { background-color: var(--danger-hover); }
         .info-box { background-color: #e9ecef; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; }
         .hidden { display: none !important; }
         #qr-reader { border: 2px dashed #ccc; border-radius: 8px; overflow: hidden; margin-bottom: 1rem; min-height: 250px; }
-        #status-message { 
-            text-align: center; 
-            padding: 1rem; 
-            border-radius: 8px; 
-            margin-top: 1rem; 
-            display: none; 
+        #status-message {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
             font-weight: 500;
         }
         .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .player-card { 
-            background-color: #f8f9fa; 
-            border: 1px solid #dee2e6; 
-            padding: 1rem; 
-            border-radius: 8px; 
-            margin-bottom: 1rem; 
-        }
-        .player-count-control { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 0.5rem; 
-            margin-top: 0.5rem;
-        }
-        .player-count-control input { 
-            text-align: center; 
-            width: 80px;
-            min-width: 80px;
-        }
-        .player-count-control button { 
-            width: 4rem; 
-            min-width: 4rem;
-        }
-        .mt-4 { margin-top: 1.5rem; }
-        .mb-4 { margin-bottom: 1.5rem; }
-        .customer-header { 
-            background-color: #d1ecf1; 
-            border: 1px solid #bee5eb; 
-            color: #0c5460; 
-        }
-        .scanner-controls { 
-            display: flex; 
-            gap: 0.5rem; 
-            margin-top: 1rem; 
-        }
-        .scanner-controls button { 
-            flex: 1; 
+        .player-card {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
         }
     </style>
 </head>
@@ -148,7 +132,7 @@
         <div id="entry-section" class="section">
             <h2>ค้นหาลูกค้า / สร้างออเดอร์ใหม่</h2>
             <div id="qr-reader"></div>
-            <div class="scanner-controls">
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
                 <button id="start-scan-btn">เริ่มสแกน QR</button>
                 <button id="stop-scan-btn" class="secondary hidden">หยุดสแกน</button>
             </div>
@@ -161,30 +145,21 @@
                 <button type="submit">ค้นหาลูกค้า</button>
             </form>
             <div style="text-align: center; margin-top: 1rem;">
-                <button id="add-guest-btn" class="secondary">เพิ่มลูกค้าทั่วไป</button>
+                <button id="add-guest-btn" class="secondary">เพิ่มลูกค้าทั่วไป (Guest)</button>
             </div>
         </div>
-
-        <div id="status-message"></div>
+        
+        <div id="status-message" class="hidden"></div>
         
         <div id="order-section" class="section">
             <h3>ข้อมูลออเดอร์</h3>
-            <div id="customer-header" class="info-box customer-header mb-4"></div>
+            <div id="customer-header" class="info-box hidden"></div>
             <div class="form-group">
                 <label for="table-input">ระบุโต๊ะ</label>
                 <input type="text" id="table-input" required placeholder="เช่น A1, B2">
             </div>
-            <div class="form-group">
-                <label for="player-count-input">จำนวนผู้เล่นทั้งหมด</label>
-                <div class="player-count-control">
-                    <button type="button" id="decrement-players" class="secondary">-</button>
-                    <input type="number" id="player-count-input" value="1" min="1" max="20">
-                    <button type="button" id="increment-players" class="secondary">+</button>
-                </div>
-            </div>
-            <button id="generate-players-btn">ยืนยันจำนวน</button>
-            <div id="player-cards-container" class="mt-4"></div>
-            <button id="confirm-checkin-btn" class="mt-4 hidden">ยืนยันการ Check-In ทั้งหมด</button>
+            <div id="player-cards-container"></div>
+            <button id="confirm-checkin-btn" style="margin-top: 1.5rem;" class="hidden">ยืนยันการ Check-In ทั้งหมด</button>
         </div>
         
         <div id="checkout-section" class="section">
@@ -192,12 +167,13 @@
             <div id="checkout-content"></div>
         </div>
 
-        <button id="add-another-player-btn" class="secondary hidden">+ เพิ่มผู้เล่นอีกคน</button>
-        <button id="reset-btn" class="secondary hidden">กลับไปหน้าค้นหา</button>
-        <button id="logout-btn" class="danger hidden">ออกจากระบบ</button>
+        <button id="add-another-player-btn" class="secondary hidden" style="margin-top: 1rem;">+ เพิ่มผู้เล่นอีกคน</button>
+        <button id="reset-btn" class="secondary hidden" style="margin-top: 1rem;">เริ่มออเดอร์ใหม่</button>
+        <button id="logout-btn" class="danger hidden" style="margin-top: 1rem;">ออกจากระบบ</button>
     </div>
-</div> <script>
-    // --- 1. CONFIGURATION & STATE ---
+
+<script>
+    // --- 1. CONFIG & STATE ---
     const CONFIG = {
         scriptURL: "https://script.google.com/macros/s/AKfycbz0QQmxXtau3Nk7tbZCdWo-DXgcjClXPkkb-xel7ikaraJSQuJCtv17Lv80lBYkAoRcRQ/exec"
     };
@@ -207,12 +183,12 @@
         staffName: null,
         selectedBranch: null,
         availableTickets: [],
-        currentOrder: [], // An array of player objects
+        currentOrder: [],
         html5QrCode: null,
         isScanning: false
     };
 
-    // --- 2. UI ELEMENT CACHE ---
+    // --- 2. UI ELEMENTS ---
     const ui = {
         staffHeader: document.getElementById('staff-header'),
         staffNameDisplay: document.getElementById('staff-name-display'),
@@ -226,17 +202,15 @@
         addAnotherPlayerBtn: document.getElementById('add-another-player-btn'),
         logoutBtn: document.getElementById('logout-btn'),
         resetBtn: document.getElementById('reset-btn'),
-        // Form elements
-        staffPin: document.getElementById('staff-pin'),
+        staffPinInput: document.getElementById('staff-pin'),
         branchSelect: document.getElementById('branch-select'),
         confirmBranchBtn: document.getElementById('confirm-branch-btn'),
-        manualCustomerId: document.getElementById('manual-customerid'),
+        manualCustomerIdInput: document.getElementById('manual-customerid'),
         tableInput: document.getElementById('table-input'),
         playerCardsContainer: document.getElementById('player-cards-container'),
         confirmCheckinBtn: document.getElementById('confirm-checkin-btn'),
         customerHeader: document.getElementById('customer-header'),
         checkoutContent: document.getElementById('checkout-content'),
-        // Scanner elements
         startScanBtn: document.getElementById('start-scan-btn'),
         stopScanBtn: document.getElementById('stop-scan-btn'),
         addGuestBtn: document.getElementById('add-guest-btn')
@@ -252,9 +226,9 @@
             }
         }
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
         const result = await response.json();
-        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        if (!result.success) throw new Error(result.message || 'API Error');
         return result;
     }
 
@@ -264,21 +238,17 @@
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(payload)
         });
-        if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+        if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
         const result = await response.json();
-        if (!result.success) throw new Error(result.message || 'Unknown API error');
+        if (!result.success) throw new Error(result.message || 'API Error');
         return result;
     }
 
     // --- 4. UI MANAGEMENT ---
     function showStatus(message, isSuccess = true) {
         ui.statusMessage.textContent = message;
-        ui.statusMessage.className = isSuccess ? 'status-success' : 'status-error';
-        ui.statusMessage.style.display = 'block';
-    }
-
-    function hideStatus() {
-        ui.statusMessage.style.display = 'none';
+        ui.statusMessage.className = `status-${isSuccess ? 'success' : 'error'}`;
+        ui.statusMessage.classList.remove('hidden');
     }
 
     function showScreen(screen) {
@@ -287,11 +257,9 @@
         ui.logoutBtn.classList.add('hidden');
         ui.resetBtn.classList.add('hidden');
         ui.staffHeader.classList.add('hidden');
-        hideStatus();
+        ui.statusMessage.classList.add('hidden');
 
-        if (screen !== 'entry') {
-            stopScanner();
-        }
+        if (screen !== 'entry') { stopScanner(); }
 
         if (screen !== 'login') {
             ui.staffHeader.classList.remove('hidden');
@@ -299,90 +267,50 @@
         }
 
         switch (screen) {
-            case 'login':
-                document.getElementById('login-section').classList.remove('hidden');
-                break;
-            case 'branch':
-                ui.branchSection.classList.remove('hidden');
-                break;
-            case 'entry':
-                ui.entrySection.classList.remove('hidden');
-                ui.resetBtn.classList.remove('hidden');
-                break;
+            case 'login': document.getElementById('login-section').classList.remove('hidden'); break;
+            case 'branch': ui.branchSection.classList.remove('hidden'); break;
+            case 'entry': ui.entrySection.classList.remove('hidden'); ui.resetBtn.classList.remove('hidden'); break;
             case 'order':
                 ui.orderSection.classList.remove('hidden');
                 ui.addAnotherPlayerBtn.classList.remove('hidden');
                 ui.resetBtn.classList.remove('hidden');
                 renderPlayerCards();
                 break;
-            case 'checkout':
-                ui.checkoutSection.classList.remove('hidden');
-                ui.resetBtn.classList.remove('hidden');
-                break;
+            case 'checkout': ui.checkoutSection.classList.remove('hidden'); ui.resetBtn.classList.remove('hidden'); break;
         }
     }
 
-    // --- 5. QR SCANNER MANAGEMENT ---
-    function startScanner() {
-        if (state.isScanning) return;
-        state.html5QrCode = new Html5Qrcode("qr-reader");
-        state.html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
-            (decodedText) => {
-                if (state.isScanning) {
-                    stopScanner();
-                    processUser(decodedText.trim(), 'userId');
-                }
-            },
-            (errorMessage) => {}
-        ).then(() => {
-            state.isScanning = true;
-            ui.startScanBtn.classList.add('hidden');
-            ui.stopScanBtn.classList.remove('hidden');
-            showStatus('กำลังสแกน QR Code...', true);
-        }).catch(err => {
-            showStatus("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาต", false);
-        });
-    }
-
-    function stopScanner() {
-        if (state.html5QrCode && state.isScanning) {
-            state.html5QrCode.stop().then(() => {
-                state.isScanning = false;
-                ui.startScanBtn.classList.remove('hidden');
-                ui.stopScanBtn.classList.add('hidden');
-                hideStatus();
-            }).catch(err => {});
-        }
-    }
-
-    // --- 6. PLAYER MANAGEMENT & RENDERING ---
     function renderPlayerCards() {
         ui.playerCardsContainer.innerHTML = '';
         if (state.currentOrder.length === 0) {
             ui.confirmCheckinBtn.classList.add('hidden');
+            ui.customerHeader.classList.add('hidden');
             return;
         }
+
         state.currentOrder.forEach((player, index) => {
             const card = document.createElement('div');
             card.className = 'player-card';
-            const ticketOptions = state.availableTickets.map(ticket =>
-                `<option value='${JSON.stringify({ name: ticket.name, price: ticket.price })}'>${ticket.name} (${ticket.price} บาท)</option>`
-            ).join('');
-
+            const ticketOptions = state.availableTickets.map(ticket => `<option value='${JSON.stringify({ name: ticket.name, price: ticket.price })}'>${ticket.name} (${ticket.price} บาท)</option>`).join('');
             card.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <p style="font-weight:bold; margin: 0;">${player.nickname || 'ลูกค้าทั่วไป'} <span style="font-weight:normal; color:#666; font-size:0.9em;">(ID: ${player.customerId || 'GUEST'})</span></p>
-                    <button type="button" class="remove-player-btn" data-index="${index}" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; font-size: 0.8em; width: auto; min-width: auto;">ลบ</button>
+                    <button type="button" class="remove-player-btn" data-index="${index}" style="background-color: var(--danger-color); font-size: 0.8em; padding: 5px 10px; width: auto; min-width: auto;">ลบ</button>
                 </div>
                 <div class="form-group"><label for="ticket-select-${index}">เลือกตั๋ว</label><select id="ticket-select-${index}" required>${ticketOptions}</select></div>
                 <div class="form-group"><label for="customer-type-${index}">ประเภทลูกค้า</label><select id="customer-type-${index}" required><option value="นักศึกษา">นักศึกษา</option><option value="วัยทำงาน" selected>วัยทำงาน</option><option value="ครอบครัว">ครอบครัว</option></select></div>`;
             ui.playerCardsContainer.appendChild(card);
         });
+
         document.querySelectorAll('.remove-player-btn').forEach(btn => btn.addEventListener('click', (e) => {
             state.currentOrder.splice(parseInt(e.target.dataset.index), 1);
-            renderPlayerCards();
-            updateCustomerHeader();
+            if(state.currentOrder.length === 0) {
+                resetForNewOrder();
+            } else {
+                renderPlayerCards();
+            }
         }));
+        
         ui.confirmCheckinBtn.classList.remove('hidden');
         updateCustomerHeader();
     }
@@ -396,50 +324,43 @@
         }
     }
 
-    function addGuestPlayer() {
-        const guestNumber = state.currentOrder.filter(p => p.customerId === 'GUEST').length + 1;
-        state.currentOrder.push({
-            userId: `GUEST_${Date.now()}_${guestNumber}`,
-            customerId: 'GUEST',
-            nickname: `ลูกค้าทั่วไป ${guestNumber}`
-        });
-        showScreen('order');
+    function renderCheckoutScreen(sessionData) {
+        ui.checkoutContent.innerHTML = `<div class="info-box"><p>ลูกค้ามีเซสชันที่ยังไม่ได้ชำระเงิน (Order ID: ${sessionData.orderId}). ระบบ Check-out ยังไม่พร้อมใช้งาน</p></div>`;
+        showScreen('checkout');
     }
 
-    // --- 7. CORE LOGIC & EVENT HANDLERS ---
-    async function handleLogin(e) {
-        e.preventDefault();
-        const btn = e.target.querySelector('button');
-        btn.disabled = true;
-        btn.textContent = 'กำลังตรวจสอบ...';
-        try {
-            const pin = ui.staffPin.value.trim();
-            if (!pin) throw new Error('กรุณากรอกรหัส PIN');
+    // --- 5. QR SCANNER ---
+    function startScanner() {
+        if (state.isScanning) return;
+        state.html5QrCode = new Html5Qrcode("qr-reader");
+        state.html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+                if (state.isScanning) {
+                    stopScanner();
+                    processUser(decodedText.trim(), 'userId');
+                }
+            }, (errorMessage) => {})
+        .then(() => {
+            state.isScanning = true;
+            ui.startScanBtn.classList.add('hidden');
+            ui.stopScanBtn.classList.remove('hidden');
+            showStatus('กำลังสแกน QR Code...', true);
+        }).catch(err => showStatus("ไม่สามารถเปิดกล้องได้ กรุณาตรวจสอบการอนุญาต", false));
+    }
 
-            // Simplified: Login should always be a GET request based on our backend design.
-            const result = await apiGet('staffLogin', { pin });
-            
-            state.staffPin = pin;
-            state.staffName = result.data.staffName; // Now expects data.staffName from the backend
-            
-            localStorage.setItem('staffName', state.staffName);
-            localStorage.setItem('staffPin', state.staffPin);
-            
-            await loadTickets();
-            updateHeaderAndProceed();
-        } catch (error) {
-            showStatus(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`, false);
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'เข้าสู่ระบบ';
+    function stopScanner() {
+        if (state.html5QrCode && state.isScanning) {
+            state.html5QrCode.stop().then(() => {
+                state.isScanning = false;
+                ui.startScanBtn.classList.remove('hidden');
+                ui.stopScanBtn.classList.add('hidden');
+                ui.statusMessage.classList.add('hidden');
+            }).catch(err => {});
         }
     }
-    
-    function updateHeaderAndProceed() {
-        state.staffName = localStorage.getItem('staffName');
-        state.staffPin = localStorage.getItem('staffPin');
-        if (!state.staffPin) { showScreen('login'); return; }
 
+    // --- 6. CORE LOGIC ---
+    function proceedAfterLogin() {
         ui.staffNameDisplay.textContent = state.staffName;
         const savedBranch = localStorage.getItem('selectedBranch');
         if (savedBranch) {
@@ -452,6 +373,31 @@
         }
     }
 
+    async function handleLogin(e) {
+        e.preventDefault();
+        const btn = e.target.querySelector('button');
+        btn.disabled = true;
+        btn.textContent = 'กำลังตรวจสอบ...';
+        try {
+            const pin = ui.staffPinInput.value.trim();
+            if (!pin) throw new Error('กรุณากรอกรหัส PIN');
+            const result = await apiGet('staffLogin', { pin });
+            
+            state.staffPin = pin;
+            state.staffName = result.data.staffName;
+            localStorage.setItem('staffName', state.staffName);
+            localStorage.setItem('staffPin', state.staffPin);
+            
+            await loadTickets();
+            proceedAfterLogin();
+        } catch (error) {
+            showStatus(error.message, false);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'เข้าสู่ระบบ';
+        }
+    }
+    
     async function loadTickets() {
         try {
             const result = await apiGet('getTickets');
@@ -470,12 +416,10 @@
                 const result = await apiGet('getUserIdByCustomerId', { customerId: identifier });
                 userIdToProcess = result.data.userId;
             }
-
             if (state.currentOrder.some(p => p.userId === userIdToProcess)) {
                 showStatus('ผู้เล่นคนนี้อยู่ในออเดอร์แล้ว', false);
                 return;
             }
-            
             const result = await apiGet('getUserInitialData', { userId: userIdToProcess });
             if (result.data.activeSession) {
                 renderCheckoutScreen(result.data.activeSession);
@@ -484,26 +428,25 @@
                 showScreen('order');
             }
         } catch (error) {
-            showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+            showStatus(error.message, false);
         }
     }
     
-    function renderCheckoutScreen(sessionData) {
-        ui.checkoutContent.innerHTML = `<div class="info-box"><p>ลูกค้ามีเซสชันที่ยังไม่ได้ชำระเงิน (Order ID: ${sessionData.orderId}). ระบบ Check-out ยังไม่พร้อมใช้งาน</p></div>`;
-        showScreen('checkout');
+    function addGuestPlayer() {
+        const guestNumber = state.currentOrder.filter(p => p.customerId === 'GUEST').length + 1;
+        state.currentOrder.push({
+            userId: `GUEST_${Date.now()}_${guestNumber}`,
+            customerId: 'GUEST',
+            nickname: `ลูกค้าทั่วไป ${guestNumber}`
+        });
+        showScreen('order');
     }
-    
-    async function handleCheckInSubmit(e) {
-        e.preventDefault();
+
+    async function handleCheckInSubmit() {
         if (!ui.tableInput.value.trim()) {
             showStatus('กรุณาระบุโต๊ะ', false);
             return;
         }
-        if (state.currentOrder.length === 0) {
-            showStatus('กรุณาเพิ่มผู้เล่นอย่างน้อย 1 คน', false);
-            return;
-        }
-
         ui.confirmCheckinBtn.disabled = true;
         ui.confirmCheckinBtn.textContent = 'กำลังบันทึก...';
         try {
@@ -533,7 +476,7 @@
     function resetForNewOrder() {
         state.currentOrder = [];
         ui.tableInput.value = '';
-        ui.manualCustomerId.value = '';
+        ui.manualCustomerIdInput.value = '';
         ui.playerCardsContainer.innerHTML = '';
         ui.confirmCheckinBtn.classList.add('hidden');
         ui.customerHeader.classList.add('hidden');
@@ -543,19 +486,19 @@
     function handleLogout() {
         localStorage.clear();
         state.staffName = null; state.staffPin = null; state.selectedBranch = null; state.currentOrder = [];
-        ui.staffPin.value = ''; ui.manualCustomerId.value = ''; ui.branchSelect.value = '';
+        ui.staffPinInput.value = ''; ui.manualCustomerIdInput.value = ''; ui.branchSelect.value = '';
         stopScanner();
         showScreen('login');
     }
 
-    // --- 8. INITIALIZATION ---
+    // --- 7. INITIALIZATION ---
     function initialize() {
         document.getElementById('login-form').addEventListener('submit', handleLogin);
         ui.confirmBranchBtn.addEventListener('click', () => {
             const selectedBranch = ui.branchSelect.value;
             if (selectedBranch) {
                 localStorage.setItem('selectedBranch', selectedBranch);
-                updateHeaderAndProceed();
+                proceedAfterLogin();
             }
         });
         ui.branchSelect.addEventListener('change', (e) => { ui.confirmBranchBtn.disabled = !e.target.value; });
@@ -563,7 +506,7 @@
         ui.stopScanBtn.addEventListener('click', stopScanner);
         document.getElementById('manual-entry-form').addEventListener('submit', (e) => {
             e.preventDefault();
-            const customerId = ui.manualCustomerId.value.trim();
+            const customerId = ui.manualCustomerIdInput.value.trim();
             if (customerId) processUser(customerId, 'customerId');
         });
         ui.addGuestBtn.addEventListener('click', addGuestPlayer);
@@ -573,8 +516,10 @@
         ui.logoutBtn.addEventListener('click', handleLogout);
 
         if (localStorage.getItem('staffPin')) {
+            state.staffPin = localStorage.getItem('staffPin');
+            state.staffName = localStorage.getItem('staffName');
             loadTickets();
-            updateHeaderAndProceed();
+            proceedAfterLogin();
         } else {
             showScreen('login');
         }
@@ -584,4 +529,3 @@
 </script>
 </body>
 </html>
-
