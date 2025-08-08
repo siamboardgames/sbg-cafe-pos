@@ -99,7 +99,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const liffId = '2007836924-1X8GmJKj';
-            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbz1PHIzqBlXxSEk-5U8RwrFSMVmfmtk8-kt99B5WmeY4pqr8utS9C3MGWceZ1iuF5EJxw/exec';
+            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfUt5FHuddji-v_SkhRi5sZcqv02OXeSx8Be6c02gMocgoWTqYaFeC6CEk-rr-bKtL2A/exec';
 
             let userProfile = null;
             let sessionTimer = null;
@@ -171,40 +171,140 @@
                 }
             }
 
-            function showMemberApp(userId, activeSession, memberInfo) {
-                document.getElementById('registration-section').style.display = 'none';
-                document.getElementById('member-app-section').style.display = 'block';
-                const tabsContainer = document.getElementById('tabs-container');
-                tabsContainer.innerHTML = `
-                    <div id="tab-qr" class="tab-button">QR Code</div>
-                    <div id="tab-playing-status" class="tab-button">สถานะ</div>
-                    <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
-                `;
-                document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
-                document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
-                document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
-                
-                const activeDetails = document.getElementById('session-active-details');
-                const inactiveMessage = document.getElementById('session-inactive-message');
-                if (activeSession) {
-                    inactiveMessage.style.display = 'none';
-                    activeDetails.style.display = 'block';
-                    document.getElementById('branch-display').textContent = activeSession.branch;
-                    document.getElementById('table-display').textContent = activeSession.table;
-                    startTimer(activeSession.checkInTime);
-                } else {
-                    activeDetails.style.display = 'none';
-                    inactiveMessage.style.display = 'block';
-                }
+function showMemberApp(userId, activeSession, memberInfo) {
+    document.getElementById('registration-section').style.display = 'none';
+    document.getElementById('member-app-section').style.display = 'block';
+    
+    const tabsContainer = document.getElementById('tabs-container');
+    tabsContainer.innerHTML = `
+        <div id="tab-qr" class="tab-button">QR Code</div>
+        <div id="tab-playing-status" class="tab-button">สถานะ</div>
+        <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
+    `;
+    
+    // Add event listeners
+    document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
+    document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
+    document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
+    
+    // Update session display with better formatting
+    const activeDetails = document.getElementById('session-active-details');
+    const inactiveMessage = document.getElementById('session-inactive-message');
+    
+    if (activeSession) {
+        inactiveMessage.style.display = 'none';
+        activeDetails.style.display = 'block';
+        
+        // Enhanced session display
+        activeDetails.innerHTML = `
+            <div class="text-center space-y-4">
+                <div class="bg-green-100 p-4 rounded-lg">
+                    <p class="text-green-800 font-semibold">🎮 กำลังเล่นอยู่</p>
+                </div>
+                <div>
+                    <p class="text-lg text-gray-500">เวลาที่เล่นไป</p>
+                    <p id="timer-display" class="text-5xl font-bold text-blue-600">00:00:00</p>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm text-gray-500">สาขา</p>
+                        <p id="branch-display" class="text-lg font-semibold">${activeSession.branch}</p>
+                    </div>
+                    <div class="bg-gray-50 p-3 rounded-lg">
+                        <p class="text-sm text-gray-500">โต๊ะ</p>
+                        <p id="table-display" class="text-lg font-semibold">${activeSession.table}</p>
+                    </div>
+                </div>
+                ${activeSession.players && activeSession.players.length > 1 ? `
+                <div class="bg-blue-50 p-3 rounded-lg">
+                    <p class="text-sm text-blue-600 font-medium">เพื่อนร่วมเล่น (${activeSession.players.length} คน)</p>
+                    <div class="mt-2 space-y-1">
+                        ${activeSession.players.map(player => 
+                            `<p class="text-sm ${player.userId === userId ? 'font-bold text-blue-800' : 'text-gray-600'}">
+                                ${player.nickname} ${player.userId === userId ? '(คุณ)' : ''}
+                            </p>`
+                        ).join('')}
+                    </div>
+                </div>
+                ` : ''}
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                    <p class="text-yellow-800 text-sm">
+                        💡 เมื่อเล่นเสร็จแล้ว ให้แจ้งพนักงานเพื่อทำการชำระเงิน
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        startTimer(activeSession.checkInTime);
+        
+    } else {
+        activeDetails.style.display = 'none';
+        inactiveMessage.style.display = 'block';
+        inactiveMessage.innerHTML = `
+            <div class="text-center p-8 bg-gray-100 rounded-lg">
+                <div class="mb-4">
+                    <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">พร้อมเริ่มเล่นแล้ว!</h3>
+                <p class="text-gray-600 mb-4">แสดง QR Code ให้พนักงานเพื่อเริ่มต้นเซสชั่นการเล่น</p>
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                    <p class="text-blue-800 text-sm">
+                        📱 ไปที่แท็บ "QR Code" เพื่อแสดงรหัสของคุณ
+                    </p>
+                </div>
+            </div>
+        `;
+    }
 
-                if(memberInfo) {
-                    document.getElementById('qr-customer-name').textContent = memberInfo.nickname || '-';
-                    document.getElementById('qr-customer-id').textContent = memberInfo.customerId || '-';
-                }
+    // Update QR code info
+    if (memberInfo) {
+        document.getElementById('qr-customer-name').textContent = memberInfo.nickname || '-';
+        document.getElementById('qr-customer-id').textContent = memberInfo.customerId || '-';
+    }
 
-                switchTab('qr-code-view'); 
-                generateQrCode(userId);
+    // Default to appropriate tab
+    if (activeSession) {
+        switchTab('playing-status-view');
+    } else {
+        switchTab('qr-code-view');
+    }
+    
+    generateQrCode(userId);
+}
+
+// Enhanced timer function with better formatting
+function startTimer(checkInTime) {
+    if (sessionTimer) clearInterval(sessionTimer);
+    const startTime = new Date(checkInTime).getTime();
+    
+    sessionTimer = setInterval(() => {
+        const now = new Date().getTime();
+        const distance = now - startTime;
+        
+        const hours = Math.floor(distance / (3600000));
+        const minutes = Math.floor((distance % (3600000)) / (60000));
+        const seconds = Math.floor((distance % (60000)) / 1000);
+        
+        const timerDisplay = document.getElementById('timer-display');
+        if (timerDisplay) {
+            timerDisplay.textContent = 
+                ('0' + hours).slice(-2) + ":" + 
+                ('0' + minutes).slice(-2) + ":" + 
+                ('0' + seconds).slice(-2);
+            
+            // Add visual indicators for long sessions
+            if (hours >= 2) {
+                timerDisplay.classList.add('text-orange-500');
+                timerDisplay.classList.remove('text-blue-600');
+            } else if (hours >= 3) {
+                timerDisplay.classList.add('text-red-500');
+                timerDisplay.classList.remove('text-orange-500', 'text-blue-600');
             }
+        }
+    }, 1000);
+}
 
             function updateUI(profile) {
                 document.getElementById('loading-state').style.display = 'none';
@@ -367,3 +467,4 @@
     </script>
 </body>
 </html>
+
