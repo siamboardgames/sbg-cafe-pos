@@ -260,7 +260,7 @@
 
     <script>
         // Configuration
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzQG1IsR5du-543OZS1d0pS3noh-WLG_Lg72PY6iCv0y0GkL6hc-MbegpjTaNcTCh80/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzzj0cGLWaF6wvW4E4sJcJSUV7hQa9igYUVJAGQusk9CX88gx00NBWsFXCRqQmQ550O/exec';
         
         // Application State
         const state = {
@@ -354,8 +354,21 @@
             screens.forEach(screen => {
                 document.getElementById(screen).classList.add('hidden');
             });
+            
+            // Stop QR scanner when navigating away from search
+            if (state.isScanning && screenName !== 'search-section') {
+                stopQRScanner();
+            }
+            
             if (screenName) {
                 document.getElementById(screenName).classList.remove('hidden');
+                
+                // Reinitialize QR scanner when returning to search
+                if (screenName === 'search-section') {
+                    setTimeout(() => {
+                        setupScannerEvents();
+                    }, 100);
+                }
             }
         }
 
@@ -468,27 +481,38 @@
             if (state.scanner && state.isScanning) {
                 state.scanner.stop().then(() => {
                     state.isScanning = false;
-                    document.getElementById('start-scan-btn').classList.remove('hidden');
-                    document.getElementById('stop-scan-btn').classList.add('hidden');
-                    document.querySelector('.scanner-overlay').classList.add('hidden');
-                    document.getElementById('qr-scanner').innerHTML = `
-                        <button id="start-scan-btn" class="btn-primary">📷 เปิดกล้องสแกน</button>
-                        <div class="scanner-overlay hidden">
-                            <div class="scanner-corners corner-tl"></div>
-                            <div class="scanner-corners corner-tr"></div>
-                            <div class="scanner-corners corner-bl"></div>
-                            <div class="scanner-corners corner-br"></div>
-                        </div>
-                    `;
-                    setupScannerEvents();
+                    resetScannerUI();
+                }).catch(err => {
+                    console.error('Error stopping scanner:', err);
+                    state.isScanning = false;
+                    resetScannerUI();
                 });
             }
         }
 
+        function resetScannerUI() {
+            const scannerContainer = document.getElementById('qr-scanner');
+            scannerContainer.innerHTML = `
+                <button id="start-scan-btn" class="btn-primary">📷 เปิดกล้องสแกน</button>
+                <div class="scanner-overlay hidden">
+                    <div class="scanner-corners corner-tl"></div>
+                    <div class="scanner-corners corner-tr"></div>
+                    <div class="scanner-corners corner-bl"></div>
+                    <div class="scanner-corners corner-br"></div>
+                </div>
+            `;
+        }
+
         function setupScannerEvents() {
-            document.getElementById('start-scan-btn').addEventListener('click', startQRScanner);
+            const startBtn = document.getElementById('start-scan-btn');
             const stopBtn = document.getElementById('stop-scan-btn');
-            if (stopBtn) stopBtn.addEventListener('click', stopQRScanner);
+            
+            if (startBtn) {
+                startBtn.addEventListener('click', startQRScanner);
+            }
+            if (stopBtn) {
+                stopBtn.addEventListener('click', stopQRScanner);
+            }
         }
 
         // Customer Search Functions
@@ -677,7 +701,7 @@
                 const playerDiv = document.createElement('div');
                 playerDiv.className = 'bg-gray-50 p-4 rounded-lg border';
                 
-                let ticketOptions = '';
+                let ticketOptions = '<option value="">-- เลือกตั๋ว --</option>';
                 state.tickets.forEach(ticket => {
                     ticketOptions += `<option value="${JSON.stringify(ticket)}">${ticket.name} - ${formatCurrency(ticket.price)}</option>`;
                 });
@@ -693,13 +717,14 @@
                     <div class="grid md:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทตั๋ว</label>
-                            <select class="w-full p-2 border border-gray-300 rounded-lg ticket-select" data-index="${index}">
+                            <select class="w-full p-2 border border-gray-300 rounded-lg ticket-select" data-index="${index}" required>
                                 ${ticketOptions}
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">ประเภทลูกค้า</label>
-                            <select class="w-full p-2 border border-gray-300 rounded-lg customer-type-select" data-index="${index}">
+                            <select class="w-full p-2 border border-gray-300 rounded-lg customer-type-select" data-index="${index}" required>
+                                <option value="">-- เลือกประเภท --</option>
                                 <option value="Adult">ผู้ใหญ่</option>
                                 <option value="Student">นักเรียน/นักศึกษา</option>
                                 <option value="Child">เด็ก</option>
@@ -716,17 +741,56 @@
             document.querySelectorAll('.ticket-select, .customer-type-select').forEach(select => {
                 select.addEventListener('change', updatePlayerInfo);
             });
+            
+            // Initialize button state
+            updateCheckInButtonState();
         }
 
         function updatePlayerInfo(e) {
             const index = parseInt(e.target.dataset.index);
             const isTicketSelect = e.target.classList.contains('ticket-select');
             
+            // Reset border color when user makes a selection
+            e.target.style.borderColor = '#d1d5db';
+            
             if (isTicketSelect) {
-                const ticketData = JSON.parse(e.target.value);
-                state.currentPlayers[index].selectedTicket = ticketData;
+                if (e.target.value) {
+                    const ticketData = JSON.parse(e.target.value);
+                    state.currentPlayers[index].selectedTicket = ticketData;
+                } else {
+                    state.currentPlayers[index].selectedTicket = null;
+                }
             } else {
-                state.currentPlayers[index].customerType = e.target.value;
+                if (e.target.value) {
+                    state.currentPlayers[index].customerType = e.target.value;
+                } else {
+                    state.currentPlayers[index].customerType = null;
+                }
+            }
+            
+            // Check if all fields are filled to enable/disable check-in button
+            updateCheckInButtonState();
+        }
+
+        function updateCheckInButtonState() {
+            const confirmBtn = document.getElementById('confirm-checkin-btn');
+            if (!confirmBtn) return;
+            
+            let allValid = true;
+            state.currentPlayers.forEach(player => {
+                if (!player.selectedTicket || !player.customerType) {
+                    allValid = false;
+                }
+            });
+            
+            if (allValid) {
+                confirmBtn.classList.remove('opacity-50');
+                confirmBtn.classList.add('btn-success');
+                confirmBtn.disabled = false;
+            } else {
+                confirmBtn.classList.add('opacity-50');
+                confirmBtn.classList.remove('btn-success');
+                confirmBtn.disabled = true;
             }
         }
 
@@ -735,10 +799,29 @@
             const table = document.getElementById('table-input').value.trim();
             const confirmBtn = document.getElementById('confirm-checkin-btn');
             
-            // Validate all players have tickets selected
+            // Validate all players have tickets and customer types selected
             for (let i = 0; i < state.currentPlayers.length; i++) {
-                if (!state.currentPlayers[i].selectedTicket) {
-                    showStatus(`กรุณาเลือกตั๋วสำหรับ ${state.currentPlayers[i].nickname}`, 'warning');
+                const player = state.currentPlayers[i];
+                
+                if (!player.selectedTicket) {
+                    showStatus(`กรุณาเลือกตั๋วสำหรับ ${player.nickname}`, 'warning');
+                    // Highlight the missing field
+                    const ticketSelect = document.querySelector(`[data-index="${i}"].ticket-select`);
+                    if (ticketSelect) {
+                        ticketSelect.style.borderColor = '#ef4444';
+                        ticketSelect.focus();
+                    }
+                    return;
+                }
+                
+                if (!player.customerType) {
+                    showStatus(`กรุณาเลือกประเภทลูกค้าสำหรับ ${player.nickname}`, 'warning');
+                    // Highlight the missing field
+                    const typeSelect = document.querySelector(`[data-index="${i}"].customer-type-select`);
+                    if (typeSelect) {
+                        typeSelect.style.borderColor = '#ef4444';
+                        typeSelect.focus();
+                    }
                     return;
                 }
             }
@@ -751,7 +834,7 @@
                     userId: player.userId,
                     ticketType: player.selectedTicket.name,
                     basePrice: player.selectedTicket.price,
-                    customerType: player.customerType || 'Adult'
+                    customerType: player.customerType
                 }));
 
                 const payload = {
