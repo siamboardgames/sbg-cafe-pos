@@ -104,7 +104,7 @@
     </div>
 
     <script>
-        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz1PHIzqBlXxSEk-5U8RwrFSMVmfmtk8-kt99B5WmeY4pqr8utS9C3MGWceZ1iuF5EJxw/exec";
+        const MASTER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxfUt5FHuddji-v_SkhRi5sZcqv02OXeSx8Be6c02gMocgoWTqYaFeC6CEk-rr-bKtL2A/exec";
         
         let state = {
             selectedBranch: null,
@@ -347,69 +347,145 @@
         }
 
         function displayCheckoutScreen(sessionData) {
-            hideAllSections();
-            document.getElementById('staff-header').classList.remove('hidden');
-            checkoutSection.style.display = 'block';
-            resetBtn.style.display = 'block';
-            
-            let playerHtml = '';
-            sessionData.players.forEach(player => {
-                playerHtml += `<p><strong>- ${player.nickname}</strong> (${player.ticketName})</p>`;
-            });
+    showScreen('checkout');
+    
+    let playerHtml = '';
+    let totalPrice = 0;
+    sessionData.players.forEach(player => {
+        playerHtml += `<div class="player-checkout-item">
+            <p><strong>${player.nickname}</strong></p>
+            <p class="text-sm text-gray-600">${player.ticketName} - ${player.price} บาท</p>
+        </div>`;
+        totalPrice += parseFloat(player.price) || 0;
+    });
 
-            const timePlayed = calculateDuration(sessionData.players[0].checkInTime);
+    const timePlayed = calculateDuration(sessionData.checkInTime);
 
-            checkoutSection.innerHTML = `
-                <h2>สรุปยอด Check-Out</h2>
-                <div class="info-box">
-                    <p><strong>OrderID:</strong> ${sessionData.orderId}</p>
-                    <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
-                    <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
-                    <h3 class="mt-2 font-bold">รายชื่อผู้เล่น:</h3>
-                    ${playerHtml}
+    ui.checkoutSection.innerHTML = `
+        <h2>สรุปยอด Check-Out</h2>
+        <div class="info-box">
+            <p><strong>OrderID:</strong> ${sessionData.orderId}</p>
+            <p><strong>สาขา:</strong> ${sessionData.branch}</p>
+            <p><strong>โต๊ะ:</strong> ${sessionData.table}</p>
+            <p><strong>เวลาที่เล่นไป:</strong> ${timePlayed}</p>
+            <p><strong>จำนวนผู้เล่น:</strong> ${sessionData.players.length} คน</p>
+        </div>
+        <div class="mt-4">
+            <h3 class="font-bold mb-2">รายละเอียดผู้เล่น:</h3>
+            <div class="space-y-2 mb-4">
+                ${playerHtml}
+            </div>
+            <div class="bg-blue-50 p-3 rounded-lg">
+                <p class="font-bold">ราคารวม (ก่อนส่วนลด): ${totalPrice.toFixed(2)} บาท</p>
+            </div>
+        </div>
+        <form id="checkout-form" class="mt-4">
+            <div class="form-group">
+                <label for="special-discount">ส่วนลดพิเศษ (บาท)</label>
+                <input type="number" id="special-discount" value="0" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label for="checkout-notes">หมายเหตุ (ถ้ามี)</label>
+                <textarea id="checkout-notes" rows="2" placeholder="เช่น ลูกค้าชำระด้วยบัตรเครดิต"></textarea>
+            </div>
+            <button type="submit" class="danger">คำนวณและยืนยันการชำระเงิน</button>
+        </form>
+        <div id="final-price-display" class="mt-4 hidden">
+            <div class="bg-green-50 border border-green-200 p-4 rounded-lg">
+                <div id="promotion-info" class="mb-2"></div>
+                <div class="text-center">
+                    <p class="text-lg">ยอดที่ต้องชำระ</p>
+                    <p id="final-amount" class="text-3xl font-bold text-green-600"></p>
                 </div>
-                <form id="checkout-form" class="mt-4">
-                    <div class="form-group">
-                        <label for="special-discount">ส่วนลดพิเศษ (บาท)</label>
-                        <input type="number" id="special-discount" value="0" min="0">
-                    </div>
-                    <button type="submit" class="danger">ยืนยันและคำนวณราคา</button>
-                </form>
-                <div id="final-price-display" class="mt-4 text-center hidden"></div>
+                <button id="complete-checkout-btn" class="w-full mt-4 bg-green-600 hover:bg-green-700 text-white p-3 rounded-lg font-bold">
+                    ✓ เสร็จสิ้นการชำระเงิน
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
+}
+
+async function handleCheckOutSubmit(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'กำลังคำนวณ...';
+
+    // Extract order ID from the displayed info
+    const orderIdText = document.querySelector('#checkout-section .info-box p').textContent;
+    const orderId = orderIdText.split(': ')[1];
+    const specialDiscount = parseFloat(document.getElementById('special-discount').value) || 0;
+    const notes = document.getElementById('checkout-notes').value;
+
+    try {
+        const payload = {
+            action: 'checkOut',
+            orderId: orderId,
+            specialDiscount: specialDiscount,
+            staffId: state.staffName,
+            notes: notes
+        };
+
+        const result = await apiPost(payload);
+
+        if (result.success) {
+            // Show the final calculation
+            const finalPriceDiv = document.getElementById('final-price-display');
+            const promotionInfo = document.getElementById('promotion-info');
+            const finalAmount = document.getElementById('final-amount');
+            
+            promotionInfo.innerHTML = `
+                <p class="text-sm"><strong>ราคาต้นฉบับ:</strong> ${result.data.originalPrice.toFixed(2)} บาท</p>
+                <p class="text-sm"><strong>โปรโมชั่น:</strong> ${result.data.promotion}</p>
+                ${result.data.specialDiscount > 0 ? `<p class="text-sm"><strong>ส่วนลดพิเศษ:</strong> ${result.data.specialDiscount.toFixed(2)} บาท</p>` : ''}
+                <p class="text-sm"><strong>เวลาที่ใช้:</strong> ${result.data.duration} นาที</p>
             `;
-
-            document.getElementById('checkout-form').addEventListener('submit', handleCheckOutSubmit);
+            finalAmount.textContent = `${result.data.finalPrice.toFixed(2)} บาท`;
+            
+            finalPriceDiv.classList.remove('hidden');
+            btn.style.display = 'none';
+            
+            // Add event listener for completion
+            document.getElementById('complete-checkout-btn').addEventListener('click', () => {
+                showStatus('การชำระเงินเสร็จสิ้น! กลับสู่หน้าค้นหาลูกค้า', true);
+                setTimeout(showCustomerSearch, 2000);
+            });
+            
+        } else {
+            throw new Error(result.message);
         }
+        
+    } catch (error) {
+        showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+// --- DisplayCheckout Helper Function ---
+        function showStatus(message, isSuccess) {
+    ui.statusMessage.textContent = message;
+    ui.statusMessage.className = isSuccess ? 'status-success' : 'status-error';
+    ui.statusMessage.style.display = 'block';
+    setTimeout(() => {
+        ui.statusMessage.style.display = 'none';
+    }, 5000);
+}
 
-        async function handleCheckOutSubmit(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.disabled = true; btn.textContent = 'กำลังคำนวณ...';
-
-            const orderId = document.querySelector('#checkout-section .info-box p').textContent.split(': ')[1];
-            const specialDiscount = document.getElementById('special-discount').value;
-
-            try {
-                const result = await apiPost({
-                    action: 'checkOut',
-                    orderId: orderId,
-                    specialDiscount: specialDiscount,
-                    staffId: state.staffName
-                });
-
-                const finalPriceDiv = document.getElementById('final-price-display');
-                finalPriceDiv.innerHTML = `
-                    <p>โปรโมชั่นที่ใช้: ${result.data.promotion}</p>
-                    <h3 class="text-2xl font-bold">ยอดชำระสุทธิ: ${result.data.finalPrice.toFixed(2)} บาท</h3>
-                `;
-                finalPriceDiv.style.display = 'block';
-                btn.style.display = 'none';
-                
-            } catch (error) {
-                showStatus(`เกิดข้อผิดพลาด: ${error.message}`, false);
-                btn.disabled = false; btn.textContent = 'ยืนยันและคำนวณราคา';
-            }
-        }
+// Add CSS for checkout items
+        const checkoutStyles = `
+    <style>
+        .player-checkout-item {
+        background-color: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        border: 1px solid #dee2e6;
+}
+.space-y-2 > * + * {
+    margin-top: 0.5rem;
+}
 
         // --- Event Listeners ---
         document.getElementById('login-form').addEventListener('submit', handleLogin);
@@ -474,3 +550,4 @@
     </script>
 </body>
 </html>
+
