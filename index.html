@@ -269,7 +269,7 @@
 
     <script>
         // Configuration
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzzj0cGLWaF6wvW4E4sJcJSUV7hQa9igYUVJAGQusk9CX88gx00NBWsFXCRqQmQ550O/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwgEuinWWkojesjeMcsX7Cr20auurNA2uIaHT6CRD6_Up9c-3_gz4NLLHPZDvyC9jeB/exec';
         
         // Application State
         const state = {
@@ -541,7 +541,10 @@
             try {
                 const result = await apiGet('getMemberByCustomerId', { customerId });
                 if (result.success) {
-                    await handleCustomerFound(result.data.userId, 'manual');
+                    // IMPORTANT: Use the actual userId returned from the search
+                    const actualUserId = result.data.userId;
+                    console.log('Manual search found userId:', actualUserId, 'for customerId:', customerId);
+                    await handleCustomerFound(actualUserId, 'manual');
                 } else {
                     showStatus('ไม่พบรหัสสมาชิกนี้', 'error');
                 }
@@ -560,6 +563,20 @@
                 const result = await apiGet('getInitialData', { userId });
                 if (result.success) {
                     state.customer = result.data;
+                    
+                    // IMPORTANT: Store the actual userId for later use
+                    if (state.customer.memberInfo) {
+                        state.customer.memberInfo.userId = userId; // Ensure we have the actual LINE User ID
+                        state.customer.userId = userId; // Also store it at top level
+                    } else {
+                        // For non-members, still store the userId
+                        state.customer = {
+                            ...state.customer,
+                            userId: userId,
+                            memberInfo: null
+                        };
+                    }
+                    
                     displayCustomerInfo();
                     
                     if (state.customer.activeSession) {
@@ -569,7 +586,10 @@
                     }
                     
                     showScreen('customer-section');
-                    showStatus(`พบลูกค้า: ${state.customer.memberInfo?.nickname || 'Guest'}`, 'success');
+                    
+                    const customerName = state.customer.memberInfo?.nickname || 'Guest';
+                    showStatus(`พบลูกค้า: ${customerName} (UserID: ${userId})`, 'success');
+                    console.log('Customer found with UserID:', userId, 'Customer data:', state.customer);
                 } else {
                     showStatus('ไม่พบข้อมูลลูกค้า', 'error');
                 }
@@ -678,11 +698,12 @@
 
             // Initialize players array
             state.currentPlayers = [];
+            
             for (let i = 0; i < playersCount; i++) {
                 if (i === 0 && state.customer.memberInfo) {
-                    // First player is the searched customer
+                    // FIXED: First player should use the actual member's LINE User ID, not a GUEST ID
                     state.currentPlayers.push({
-                        userId: state.customer.memberInfo.userId || `GUEST_${Date.now()}_${i}`,
+                        userId: state.customer.memberInfo.userId || getActualUserIdFromCustomer(), // Use real LINE User ID
                         nickname: state.customer.memberInfo.nickname,
                         customerId: state.customer.memberInfo.customerId,
                         isMember: true
@@ -700,6 +721,23 @@
 
             displayPlayersSetup();
             showScreen('players-section');
+        }
+        
+        // Helper function to get the actual User ID from the customer search
+        function getActualUserIdFromCustomer() {
+            // This should be set when we found the customer via QR/manual search
+            // The customer object should contain the actual LINE User ID
+            if (state.customer && state.customer.memberInfo && state.customer.memberInfo.userId) {
+                return state.customer.memberInfo.userId;
+            }
+            
+            // Fallback: if we don't have it in memberInfo, we might have it from the search
+            if (state.customer && state.customer.userId) {
+                return state.customer.userId;
+            }
+            
+            console.error('Could not find actual User ID for customer');
+            return `UNKNOWN_USER_${Date.now()}`;
         }
 
         function displayPlayersSetup() {
@@ -915,12 +953,17 @@
             confirmBtn.textContent = 'กำลังบันทึก...';
 
             try {
-                const playersData = state.currentPlayers.map(player => ({
-                    userId: player.userId,
-                    ticketType: player.selectedTicket.name,
-                    basePrice: player.selectedTicket.price,
-                    customerType: player.customerType
-                }));
+                const playersData = state.currentPlayers.map(player => {
+                    console.log(`Check-in player: ${player.nickname}, UserID: ${player.userId}, isMember: ${player.isMember}`);
+                    return {
+                        userId: player.userId,
+                        ticketType: player.selectedTicket.name,
+                        basePrice: player.selectedTicket.price,
+                        customerType: player.customerType
+                    };
+                });
+
+                console.log('Check-in payload players:', playersData);
 
                 const payload = {
                     action: 'checkIn',
