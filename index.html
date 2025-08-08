@@ -190,6 +190,13 @@
             <div id="players-section" class="hidden bg-white rounded-xl shadow-lg p-6 mb-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">ตั้งค่าผู้เล่นและตั๋ว</h3>
                 <div id="players-list" class="space-y-4 mb-6"></div>
+                
+                <!-- Debug Button - Remove this after testing -->
+                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p class="text-sm text-yellow-700 mb-2">🔧 Debug: ตรวจสอบสถานะปุ่ม</p>
+                    <button id="debug-check-btn" class="btn-secondary text-sm py-1 px-3">ตรวจสอบค่าที่เลือก</button>
+                </div>
+                
                 <div class="flex space-x-4">
                     <button id="confirm-checkin-btn" class="flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg opacity-50 cursor-not-allowed" disabled>
                         ✅ เลือกตั๋วและประเภทลูกค้าก่อน
@@ -742,10 +749,29 @@
             // Add event listeners for player updates
             document.querySelectorAll('.ticket-select, .customer-type-select').forEach(select => {
                 select.addEventListener('change', updatePlayerInfo);
+                
+                // IMPORTANT: Also trigger on input event for better detection
+                select.addEventListener('input', updatePlayerInfo);
+                
+                // Force check current values in case they're already selected
+                if (select.value) {
+                    updatePlayerInfo({ target: select });
+                }
             });
             
             // Initialize button state
             updateCheckInButtonState();
+            
+            // Force check all current values after a short delay
+            setTimeout(() => {
+                document.querySelectorAll('.ticket-select, .customer-type-select').forEach(select => {
+                    if (select.value) {
+                        console.log('Force checking select:', select.className, select.value);
+                        updatePlayerInfo({ target: select });
+                    }
+                });
+                updateCheckInButtonState();
+            }, 500);
         }
 
         function updatePlayerInfo(e) {
@@ -1157,6 +1183,13 @@ ${checkoutData.promotionApplied !== 'None' ?
             document.getElementById('confirm-checkin-btn').addEventListener('click', handleCheckIn);
             document.getElementById('cancel-setup-btn').addEventListener('click', () => showScreen('customer-section'));
             
+            // Debug button
+            document.addEventListener('click', (e) => {
+                if (e.target.id === 'debug-check-btn') {
+                    handleDebugCheck();
+                }
+            });
+            
             // Checkout
             document.getElementById('checkout-form').addEventListener('submit', handleCheckout);
             
@@ -1175,6 +1208,31 @@ ${checkoutData.promotionApplied !== 'None' ?
                     document.getElementById('login-form').dispatchEvent(new Event('submit'));
                 }
             });
+        }
+
+        // Debug function to manually check current state
+        function handleDebugCheck() {
+            console.log('=== DEBUG CHECK ===');
+            console.log('Current players:', state.currentPlayers);
+            
+            // Check all selects manually
+            document.querySelectorAll('.ticket-select, .customer-type-select').forEach((select, i) => {
+                console.log(`Select ${i}:`, {
+                    className: select.className,
+                    dataIndex: select.dataset.index,
+                    value: select.value,
+                    selectedIndex: select.selectedIndex,
+                    selectedText: select.options[select.selectedIndex]?.text
+                });
+                
+                // Force trigger update
+                if (select.value) {
+                    updatePlayerInfo({ target: select });
+                }
+            });
+            
+            updateCheckInButtonState();
+            console.log('=== END DEBUG ===');
         }
 
         // Make functions globally available for onclick handlers
