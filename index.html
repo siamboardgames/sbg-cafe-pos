@@ -191,7 +191,9 @@
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">ตั้งค่าผู้เล่นและตั๋ว</h3>
                 <div id="players-list" class="space-y-4 mb-6"></div>
                 <div class="flex space-x-4">
-                    <button id="confirm-checkin-btn" class="flex-1 btn-success">✅ ยืนยัน Check-in</button>
+                    <button id="confirm-checkin-btn" class="flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg opacity-50 cursor-not-allowed" disabled>
+                        ✅ เลือกตั๋วและประเภทลูกค้าก่อน
+                    </button>
                     <button id="cancel-setup-btn" class="btn-secondary">❌ ยกเลิก</button>
                 </div>
             </div>
@@ -755,18 +757,28 @@
             
             if (isTicketSelect) {
                 if (e.target.value) {
-                    const ticketData = JSON.parse(e.target.value);
-                    state.currentPlayers[index].selectedTicket = ticketData;
+                    try {
+                        const ticketData = JSON.parse(e.target.value);
+                        state.currentPlayers[index].selectedTicket = ticketData;
+                        console.log(`Player ${index} ticket selected:`, ticketData);
+                    } catch (error) {
+                        console.error('Error parsing ticket data:', error);
+                        state.currentPlayers[index].selectedTicket = null;
+                    }
                 } else {
                     state.currentPlayers[index].selectedTicket = null;
                 }
             } else {
                 if (e.target.value) {
                     state.currentPlayers[index].customerType = e.target.value;
+                    console.log(`Player ${index} customer type selected:`, e.target.value);
                 } else {
                     state.currentPlayers[index].customerType = null;
                 }
             }
+            
+            // Debug: Log current player state
+            console.log(`Player ${index} current state:`, state.currentPlayers[index]);
             
             // Check if all fields are filled to enable/disable check-in button
             updateCheckInButtonState();
@@ -774,23 +786,49 @@
 
         function updateCheckInButtonState() {
             const confirmBtn = document.getElementById('confirm-checkin-btn');
-            if (!confirmBtn) return;
+            if (!confirmBtn) {
+                console.log('Confirm button not found');
+                return;
+            }
             
             let allValid = true;
-            state.currentPlayers.forEach(player => {
-                if (!player.selectedTicket || !player.customerType) {
+            let validationDetails = [];
+            
+            state.currentPlayers.forEach((player, index) => {
+                const hasTicket = player.selectedTicket && player.selectedTicket.name;
+                const hasCustomerType = player.customerType;
+                
+                validationDetails.push({
+                    index,
+                    nickname: player.nickname,
+                    hasTicket,
+                    hasCustomerType,
+                    ticket: player.selectedTicket?.name || 'Not selected',
+                    customerType: player.customerType || 'Not selected'
+                });
+                
+                if (!hasTicket || !hasCustomerType) {
                     allValid = false;
                 }
             });
             
+            console.log('Validation details:', validationDetails);
+            console.log('All valid:', allValid);
+            
             if (allValid) {
-                confirmBtn.classList.remove('opacity-50');
-                confirmBtn.classList.add('btn-success');
                 confirmBtn.disabled = false;
+                confirmBtn.className = 'flex-1 btn-success';
+                confirmBtn.textContent = '✅ ยืนยัน Check-in';
+                confirmBtn.style.opacity = '1';
+                confirmBtn.style.cursor = 'pointer';
+                console.log('Button enabled');
             } else {
-                confirmBtn.classList.add('opacity-50');
-                confirmBtn.classList.remove('btn-success');
                 confirmBtn.disabled = true;
+                confirmBtn.className = 'flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg opacity-50 cursor-not-allowed';
+                confirmBtn.textContent = '✅ เลือกตั๋วและประเภทลูกค้าก่อน';
+                confirmBtn.style.opacity = '0.5';
+                confirmBtn.style.cursor = 'not-allowed';
+                console.log('Button disabled - missing fields');
             }
         }
 
