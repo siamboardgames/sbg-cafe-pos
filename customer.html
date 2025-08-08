@@ -3,468 +3,788 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Board Game Cafe - Member</title>
+    <title>Siam Board Games - Member App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
-        #qr-code-container img { width: 100% !important; height: auto !important; border-radius: 0.75rem; margin: auto; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 500; }
-        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 1rem; }
-        button:disabled { background-color: #a0cfff; cursor: not-allowed; }
-        .tab-button { flex: 1; padding: 0.75rem; text-align: center; background-color: #e9ecef; color: #495057; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
-        .tab-button.active { background-color: #fff; color: #007bff; border-bottom-color: #007bff; }
+        
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .tab-button { transition: all 0.2s ease-in-out; }
+        .tab-button.active { background-color: #3b82f6; color: white; transform: translateY(-1px); }
+        
+        .qr-container { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .qr-code img { border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        
+        .status-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .session-timer {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
 
-    <div id="loading-state" class="text-center text-gray-600">
-        <svg class="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <p>กำลังโหลดข้อมูลสมาชิก...</p>
-    </div>
-
-    <div id="error-state" class="hidden w-full max-w-sm mx-auto text-center bg-white p-6 rounded-lg shadow-lg">
-        <h2 class="text-xl font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h2>
-        <p id="error-message" class="text-gray-700">ไม่สามารถเริ่มต้นแอปได้</p>
-    </div>
-
-    <main id="main-content" class="hidden w-full max-w-sm mx-auto bg-white rounded-2xl shadow-xl">
-        <div class="p-6">
-            <div class="flex items-center bg-gray-100 p-4 rounded-xl">
-                <img id="user-picture" src="https://placehold.co/128x128/E2E8F0/A0AEC0?text=User" alt="User Profile Picture" class="w-16 h-16 rounded-full border-2 border-white shadow-md">
-                <div class="ml-4">
-                    <p id="user-name" class="font-bold text-lg text-gray-900">กำลังโหลด...</p>
-                    <p id="membership-status" class="text-sm font-medium text-gray-600">กำลังตรวจสอบสถานะ...</p>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="relative">
+                <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-2xl">🎲</span>
                 </div>
             </div>
+            <p class="text-gray-600 font-medium">กำลังโหลดข้อมูลสมาชิก...</p>
         </div>
+    </div>
+
+    <!-- Error Screen -->
+    <div id="error-screen" class="fixed inset-0 bg-red-50 flex items-center justify-center z-40 hidden">
+        <div class="max-w-sm mx-4 bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div class="text-6xl mb-4">😵</div>
+            <h2 class="text-xl font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h2>
+            <p id="error-message" class="text-gray-700 mb-4">ไม่สามารถเชื่อมต่อกับระบบได้</p>
+            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg">
+                ลองอีกครั้ง
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="main-app" class="hidden">
         
-        <div id="content-wrapper">
-            <div id="member-app-section" class="hidden">
-                 <div class="relative px-6 pt-4 text-center">
-                     <button id="refresh-btn" class="absolute top-2 right-2 p-2 text-gray-400 hover:text-blue-600 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <svg id="refresh-icon" class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5" />
-                        </svg>
-                        <svg id="refresh-spinner" class="w-6 h-6 animate-spin hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </button>
+        <!-- Header Profile -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
+            <div class="flex items-center space-x-4">
+                <div class="relative">
+                    <img id="user-avatar" src="https://via.placeholder.com/64" 
+                         alt="Profile" class="w-16 h-16 rounded-full border-4 border-white shadow-lg">
+                    <div id="online-indicator" class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
                 </div>
-                <div id="tabs-container" class="flex border-t border-b mt-2"></div>
-                <div class="p-6">
-                    <div id="qr-code-view" class="tab-content hidden">
-                        <h2 class="text-center font-semibold text-gray-700 mb-4">แสดง QR code นี้ให้แคชเชียร์</h2>
-                        <div id="qr-code-container" class="w-full max-w-xs mx-auto aspect-square p-4 bg-white rounded-lg flex items-center justify-center border"></div>
-                        <div class="mt-4 p-3 bg-gray-100 rounded-lg text-center">
-                            <p class="text-sm text-gray-600">หากสแกนไม่ได้ แจ้งข้อมูลด้านล่าง:</p>
-                            <p class="text-base font-semibold">ชื่อสมาชิก: <span id="qr-customer-name">-</span></p>
-                            <p class="text-lg font-bold text-blue-600">ID: <span id="qr-customer-id">-</span></p>
-                        </div>
-                    </div>
-                    <div id="profile-info-view" class="tab-content hidden">
-                        <h2 class="text-center font-semibold text-gray-700 mb-4">ข้อมูลสมาชิก</h2>
-                        <div id="profile-display" class="space-y-3"></div>
-                        <div id="profile-edit-form" class="hidden space-y-3"></div>
-                    </div>
-                    <div id="playing-status-view" class="tab-content hidden">
-                        <h2 class="text-center font-semibold text-gray-700 mb-4">สถานะการเล่น</h2>
-                        <div id="session-active-details" class="text-center space-y-4 hidden">
-                            <div><p class="text-lg text-gray-500">เวลาที่เล่นไป</p><p id="timer-display" class="text-5xl font-bold text-blue-600">00:00:00</p></div>
-                            <div><p class="text-sm text-gray-500">สาขา</p><p id="branch-display" class="text-xl font-semibold">-</p></div>
-                            <div><p class="text-sm text-gray-500">โต๊ะ</p><p id="table-display" class="text-xl font-semibold">-</p></div>
-                        </div>
-                        <div id="session-inactive-message" class="text-center p-8 bg-gray-100 rounded-lg hidden">
-                            <p class="text-lg font-semibold text-gray-700">เริ่มต้นความสนุก ติดต่อได้ที่พนักงาน</p>
-                        </div>
+                <div class="flex-1">
+                    <h1 id="user-name" class="text-xl font-bold">กำลังโหลด...</h1>
+                    <div class="flex items-center space-x-2 mt-1">
+                        <span id="membership-status" class="px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20">
+                            กำลังตรวจสอบ...
+                        </span>
                     </div>
                 </div>
-            </div>
-            <div id="registration-section" class="hidden p-6">
-                 <h2 class="text-center font-semibold text-gray-700 mb-2">ลงทะเบียนสมาชิกใหม่</h2>
-                <p class="text-center text-xs text-gray-500 mb-4">กรุณากรอกรายละเอียด เนื่องจากทางร้านพบปัญหาลูกค้าลืมของบ่อยครั้ง</p>
-                <form id="registration-form">
-                    <div class="form-group"><label for="reg-nickname">ชื่อสมาชิก (ชื่อเล่น)</label><input type="text" id="reg-nickname" required></div>
-                    <div class="form-group"><label for="reg-tel">เบอร์โทรศัพท์</label><input type="tel" id="reg-tel" required></div>
-                    <button type="submit" id="reg-submit-btn" class="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">ลงทะเบียน</button>
-                </form>
+                <button id="refresh-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition-all">
+                    <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5" />
+                    </svg>
+                    <svg id="refresh-spinner" class="w-6 h-6 animate-spin hidden" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
             </div>
         </div>
-    </main>
+
+        <!-- Content Area -->
+        <div class="px-4 py-6">
+            
+            <!-- Registration Screen -->
+            <div id="registration-screen" class="hidden fade-in">
+                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                    <div class="text-center mb-6">
+                        <div class="text-6xl mb-4">🎮</div>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">ยินดีต้อนรับสู่ Siam Board Games!</h2>
+                        <p class="text-gray-600">ลงทะเบียนเป็นสมาชิกเพื่อรับสิทธิพิเศษมากมาย</p>
+                    </div>
+                    
+                    <form id="registration-form" class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อเล่น *</label>
+                            <input type="text" id="reg-nickname" required
+                                   class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                                   placeholder="ใส่ชื่อเล่นของคุณ">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">เบอร์โทรศัพท์ *</label>
+                            <input type="tel" id="reg-phone" required
+                                   class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
+                                   placeholder="08X-XXX-XXXX">
+                        </div>
+                        <div class="bg-blue-50 p-4 rounded-xl">
+                            <h4 class="font-semibold text-blue-800 mb-2">🎁 สิทธิพิเศษสมาชิก</h4>
+                            <ul class="text-sm text-blue-700 space-y-1">
+                                <li>• รับส่วนลดพิเศษจากโปรโมชั่น</li>
+                                <li>• สะสมคะแนนเพื่อแลกรางวัล</li>
+                                <li>• ข้อมูลประวัติการเล่น</li>
+                                <li>• แจ้งเตือนโปรโมชั่นใหม่</li>
+                            </ul>
+                        </div>
+                        <button type="submit" id="reg-submit-btn" 
+                                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                            🚀 ลงทะเบียนเลย!
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Member Dashboard -->
+            <div id="member-dashboard" class="hidden fade-in">
+                
+                <!-- Tab Navigation -->
+                <div class="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden">
+                    <div class="flex">
+                        <button id="tab-qr" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
+                            📱 QR Code
+                        </button>
+                        <button id="tab-status" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
+                            🎮 สถานะ
+                        </button>
+                        <button id="tab-profile" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
+                            👤 โปรไฟล์
+                        </button>
+                    </div>
+                </div>
+
+                <!-- QR Code Tab -->
+                <div id="qr-tab-content" class="tab-content hidden">
+                    <div class="qr-container rounded-2xl p-8 text-center text-white mb-6">
+                        <h3 class="text-xl font-bold mb-4">แสดง QR Code นี้ให้พนักงาน</h3>
+                        <div id="qr-code-display" class="bg-white p-6 rounded-2xl inline-block shadow-xl">
+                            <div id="qr-code"></div>
+                        </div>
+                        <p class="mt-4 text-blue-100">สแกนเพื่อเริ่มเซสชั่นการเล่น</p>
+                    </div>
+                    
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        <h4 class="font-bold text-gray-800 mb-3">ข้อมูลสำหรับพนักงาน</h4>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                <span class="text-gray-600">ชื่อสมาชิก</span>
+                                <span id="qr-member-name" class="font-semibold">-</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
+                                <span class="text-gray-600">รหัสสมาชิก</span>
+                                <span id="qr-member-id" class="font-bold text-blue-600 text-lg">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Tab -->
+                <div id="status-tab-content" class="tab-content hidden">
+                    
+                    <!-- Active Session -->
+                    <div id="active-session-display" class="hidden">
+                        <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
+                            <div class="text-center mb-6">
+                                <div class="status-badge inline-flex items-center px-4 py-2 rounded-full text-white font-semibold">
+                                    🎮 กำลังเล่นอยู่
+                                </div>
+                            </div>
+                            
+                            <div class="text-center mb-8">
+                                <p class="text-gray-600 mb-2">เวลาที่เล่นไป</p>
+                                <div id="session-timer" class="session-timer text-6xl font-bold mb-2">00:00:00</div>
+                                <p class="text-gray-500">และยังคงนับต่อไป...</p>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div class="text-center p-4 bg-blue-50 rounded-xl">
+                                    <p class="text-sm text-blue-600 font-medium">สาขา</p>
+                                    <p id="session-branch" class="text-lg font-bold text-blue-800">-</p>
+                                </div>
+                                <div class="text-center p-4 bg-purple-50 rounded-xl">
+                                    <p class="text-sm text-purple-600 font-medium">โต๊ะ</p>
+                                    <p id="session-table" class="text-lg font-bold text-purple-800">-</p>
+                                </div>
+                            </div>
+                            
+                            <div id="session-players" class="hidden">
+                                <h4 class="font-semibold text-gray-800 mb-3">เพื่อนร่วมเล่น</h4>
+                                <div id="players-list" class="space-y-2 mb-4"></div>
+                            </div>
+                            
+                            <div class="bg-gradient-to-r from-orange-100 to-red-100 p-4 rounded-xl border border-orange-200">
+                                <div class="flex items-center">
+                                    <span class="text-2xl mr-3">💡</span>
+                                    <div>
+                                        <p class="font-semibold text-orange-800">เมื่อเล่นเสร็จแล้ว</p>
+                                        <p class="text-sm text-orange-700">แจ้งพนักงานเพื่อทำการชำระเงิน</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- No Active Session -->
+                    <div id="no-session-display" class="hidden">
+                        <div class="bg-white rounded-2xl shadow-lg p-8 text-center">
+                            <div class="text-6xl mb-4">🎯</div>
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">พร้อมเริ่มเล่นแล้ว!</h3>
+                            <p class="text-gray-600 mb-6">แสดง QR Code ให้พนักงานเพื่อเริ่มเซสชั่นใหม่</p>
+                            
+                            <button id="show-qr-btn" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-8 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                                📱 ไปที่ QR Code
+                            </button>
+                            
+                            <div class="mt-6 p-4 bg-blue-50 rounded-xl">
+                                <h4 class="font-semibold text-blue-800 mb-2">🎮 เกมแนะนำวันนี้</h4>
+                                <div class="text-sm text-blue-700 space-y-1">
+                                    <p>• Splendor - เกมกลยุทธ์สะสมอัญมณี</p>
+                                    <p>• Azul - เกมวางกระเบื้องสุดฮิต</p>
+                                    <p>• Ticket to Ride - เกมผจญภัยรถไฟ</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Tab -->
+                <div id="profile-tab-content" class="tab-content hidden">
+                    <div class="bg-white rounded-2xl shadow-lg p-6">
+                        
+                        <!-- Profile Display -->
+                        <div id="profile-display">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-800">ข้อมูลส่วนตัว</h3>
+                                <button id="edit-profile-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                                    ✏️ แก้ไข
+                                </button>
+                            </div>
+                            <div id="profile-info" class="space-y-4">
+                                <!-- Profile information will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Profile Edit Form -->
+                        <div id="profile-edit" class="hidden">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-xl font-bold text-gray-800">แก้ไขข้อมูล</h3>
+                                <button id="cancel-edit-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
+                                    ❌ ยกเลิก
+                                </button>
+                            </div>
+                            <form id="profile-form" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อจริง</label>
+                                        <input type="text" id="edit-firstname" 
+                                               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold text-gray-700 mb-2">นามสกุล</label>
+                                        <input type="text" id="edit-lastname"
+                                               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อเล่น</label>
+                                    <input type="text" id="edit-nickname" required
+                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">วันเกิด</label>
+                                    <input type="date" id="edit-birthdate"
+                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">เพศ</label>
+                                    <select id="edit-gender"
+                                            class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                        <option value="">ไม่ระบุ</option>
+                                        <option value="Male">ชาย</option>
+                                        <option value="Female">หญิง</option>
+                                        <option value="Other">อื่นๆ</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">เบอร์โทรศัพท์</label>
+                                    <input type="tel" id="edit-phone" required
+                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
+                                </div>
+                                <button type="submit" id="save-profile-btn"
+                                        class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                                    💾 บันทึกข้อมูล
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const liffId = '2007836924-1X8GmJKj';
-            const MASTER_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxfUt5FHuddji-v_SkhRi5sZcqv02OXeSx8Be6c02gMocgoWTqYaFeC6CEk-rr-bKtL2A/exec';
+        // Configuration
+        const LIFF_ID = '2007836924-1X8GmJKj';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzQG1IsR5du-543OZS1d0pS3noh-WLG_Lg72PY6iCv0y0GkL6hc-MbegpjTaNcTCh80/exec';
+        
+        // Application State
+        let userProfile = null;
+        let memberData = null;
+        let sessionTimer = null;
+        let currentTab = 'qr';
 
-            let userProfile = null;
-            let sessionTimer = null;
+        // DOM Elements
+        const elements = {
+            loadingScreen: document.getElementById('loading-screen'),
+            errorScreen: document.getElementById('error-screen'),
+            mainApp: document.getElementById('main-app'),
+            registrationScreen: document.getElementById('registration-screen'),
+            memberDashboard: document.getElementById('member-dashboard'),
+            userAvatar: document.getElementById('user-avatar'),
+            userName: document.getElementById('user-name'),
+            membershipStatus: document.getElementById('membership-status'),
+            refreshBtn: document.getElementById('refresh-btn'),
+            refreshIcon: document.getElementById('refresh-icon'),
+            refreshSpinner: document.getElementById('refresh-spinner')
+        };
 
-            const refreshBtn = document.getElementById('refresh-btn');
-            const refreshIcon = document.getElementById('refresh-icon');
-            const refreshSpinner = document.getElementById('refresh-spinner');
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', initializeApp);
 
-            async function main() {
-                try {
-                    await liff.init({ liffId: liffId });
-                    if (!liff.isLoggedIn()) { liff.login(); return; }
-                    userProfile = await liff.getProfile();
-                    updateUI(userProfile);
-                    await getUserInitialData(userProfile.userId);
-                } catch (error) { showErrorState(`<b>LIFF Error:</b> ${error.message}.`); }
-            }
-
-            async function getUserInitialData(userId) {
-                const statusElement = document.getElementById('membership-status');
-                try {
-                    const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getUserInitialData');
-                    url.searchParams.append('userId', userId);
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.message);
-
-                    const data = result.data;
-                    if (data.isMember) {
-                        statusElement.textContent = 'Active Member';
-                        statusElement.className = 'text-sm font-medium text-green-500';
-                        showMemberApp(userId, data.activeSession, data.memberInfo);
-                    } else {
-                        statusElement.textContent = 'Not a Member';
-                        statusElement.className = 'text-sm font-medium text-yellow-600';
-                        showRegistrationForm();
-                    }
-                } catch (error) {
-                    statusElement.textContent = `Status Check Failed: ${error.message}`;
-                    statusElement.className = 'text-sm font-medium text-red-500';
-                    console.error("Error getting initial data:", error);
+        async function initializeApp() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
                 }
-            }
 
-            function startTimer(checkInTime) {
-                if (sessionTimer) clearInterval(sessionTimer);
-                const startTime = new Date(checkInTime).getTime();
-                sessionTimer = setInterval(() => {
-                    const now = new Date().getTime();
-                    const distance = now - startTime;
-                    const hours = Math.floor(distance / (3600000));
-                    const minutes = Math.floor((distance % (3600000)) / (60000));
-                    const seconds = Math.floor((distance % (60000)) / 1000);
-                    document.getElementById('timer-display').textContent = ('0' + hours).slice(-2) + ":" + ('0' + minutes).slice(-2) + ":" + ('0' + seconds).slice(-2);
-                }, 1000);
-            }
-
-            function switchTab(activeTabId) {
-                document.querySelectorAll('.tab-button').forEach(tab => tab.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(content => content.style.display = 'none');
-                const newActiveTab = document.getElementById(`tab-${activeTabId.replace('-view', '')}`);
-                if (newActiveTab) newActiveTab.classList.add('active');
-                const newActiveView = document.getElementById(activeTabId);
-                if (newActiveView) newActiveView.style.display = 'block';
-                if (activeTabId === 'profile-info-view') {
-                    loadProfileInfo();
-                }
-            }
-
-function showMemberApp(userId, activeSession, memberInfo) {
-    document.getElementById('registration-section').style.display = 'none';
-    document.getElementById('member-app-section').style.display = 'block';
-    
-    const tabsContainer = document.getElementById('tabs-container');
-    tabsContainer.innerHTML = `
-        <div id="tab-qr" class="tab-button">QR Code</div>
-        <div id="tab-playing-status" class="tab-button">สถานะ</div>
-        <div id="tab-profile" class="tab-button">ข้อมูลของคุณ</div>
-    `;
-    
-    // Add event listeners
-    document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr-code-view'));
-    document.getElementById('tab-playing-status').addEventListener('click', () => switchTab('playing-status-view'));
-    document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile-info-view'));
-    
-    // Update session display with better formatting
-    const activeDetails = document.getElementById('session-active-details');
-    const inactiveMessage = document.getElementById('session-inactive-message');
-    
-    if (activeSession) {
-        inactiveMessage.style.display = 'none';
-        activeDetails.style.display = 'block';
-        
-        // Enhanced session display
-        activeDetails.innerHTML = `
-            <div class="text-center space-y-4">
-                <div class="bg-green-100 p-4 rounded-lg">
-                    <p class="text-green-800 font-semibold">🎮 กำลังเล่นอยู่</p>
-                </div>
-                <div>
-                    <p class="text-lg text-gray-500">เวลาที่เล่นไป</p>
-                    <p id="timer-display" class="text-5xl font-bold text-blue-600">00:00:00</p>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                        <p class="text-sm text-gray-500">สาขา</p>
-                        <p id="branch-display" class="text-lg font-semibold">${activeSession.branch}</p>
-                    </div>
-                    <div class="bg-gray-50 p-3 rounded-lg">
-                        <p class="text-sm text-gray-500">โต๊ะ</p>
-                        <p id="table-display" class="text-lg font-semibold">${activeSession.table}</p>
-                    </div>
-                </div>
-                ${activeSession.players && activeSession.players.length > 1 ? `
-                <div class="bg-blue-50 p-3 rounded-lg">
-                    <p class="text-sm text-blue-600 font-medium">เพื่อนร่วมเล่น (${activeSession.players.length} คน)</p>
-                    <div class="mt-2 space-y-1">
-                        ${activeSession.players.map(player => 
-                            `<p class="text-sm ${player.userId === userId ? 'font-bold text-blue-800' : 'text-gray-600'}">
-                                ${player.nickname} ${player.userId === userId ? '(คุณ)' : ''}
-                            </p>`
-                        ).join('')}
-                    </div>
-                </div>
-                ` : ''}
-                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-                    <p class="text-yellow-800 text-sm">
-                        💡 เมื่อเล่นเสร็จแล้ว ให้แจ้งพนักงานเพื่อทำการชำระเงิน
-                    </p>
-                </div>
-            </div>
-        `;
-        
-        startTimer(activeSession.checkInTime);
-        
-    } else {
-        activeDetails.style.display = 'none';
-        inactiveMessage.style.display = 'block';
-        inactiveMessage.innerHTML = `
-            <div class="text-center p-8 bg-gray-100 rounded-lg">
-                <div class="mb-4">
-                    <svg class="w-16 h-16 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-700 mb-2">พร้อมเริ่มเล่นแล้ว!</h3>
-                <p class="text-gray-600 mb-4">แสดง QR Code ให้พนักงานเพื่อเริ่มต้นเซสชั่นการเล่น</p>
-                <div class="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                    <p class="text-blue-800 text-sm">
-                        📱 ไปที่แท็บ "QR Code" เพื่อแสดงรหัสของคุณ
-                    </p>
-                </div>
-            </div>
-        `;
-    }
-
-    // Update QR code info
-    if (memberInfo) {
-        document.getElementById('qr-customer-name').textContent = memberInfo.nickname || '-';
-        document.getElementById('qr-customer-id').textContent = memberInfo.customerId || '-';
-    }
-
-    // Default to appropriate tab
-    if (activeSession) {
-        switchTab('playing-status-view');
-    } else {
-        switchTab('qr-code-view');
-    }
-    
-    generateQrCode(userId);
-}
-
-// Enhanced timer function with better formatting
-function startTimer(checkInTime) {
-    if (sessionTimer) clearInterval(sessionTimer);
-    const startTime = new Date(checkInTime).getTime();
-    
-    sessionTimer = setInterval(() => {
-        const now = new Date().getTime();
-        const distance = now - startTime;
-        
-        const hours = Math.floor(distance / (3600000));
-        const minutes = Math.floor((distance % (3600000)) / (60000));
-        const seconds = Math.floor((distance % (60000)) / 1000);
-        
-        const timerDisplay = document.getElementById('timer-display');
-        if (timerDisplay) {
-            timerDisplay.textContent = 
-                ('0' + hours).slice(-2) + ":" + 
-                ('0' + minutes).slice(-2) + ":" + 
-                ('0' + seconds).slice(-2);
-            
-            // Add visual indicators for long sessions
-            if (hours >= 2) {
-                timerDisplay.classList.add('text-orange-500');
-                timerDisplay.classList.remove('text-blue-600');
-            } else if (hours >= 3) {
-                timerDisplay.classList.add('text-red-500');
-                timerDisplay.classList.remove('text-orange-500', 'text-blue-600');
+                userProfile = await liff.getProfile();
+                updateUserInterface();
+                await loadUserData();
+                
+            } catch (error) {
+                console.error('LIFF Initialization Error:', error);
+                showError('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE กรุณาลองใหม่อีกครั้ง');
             }
         }
-    }, 1000);
-}
 
-            function updateUI(profile) {
-                document.getElementById('loading-state').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-                if (profile.pictureUrl) document.getElementById('user-picture').src = profile.pictureUrl;
-                document.getElementById('user-name').textContent = profile.displayName;
-            }
+        function updateUserInterface() {
+            elements.userAvatar.src = userProfile.pictureUrl || 'https://via.placeholder.com/64';
+            elements.userName.textContent = userProfile.displayName;
+            elements.loadingScreen.classList.add('hidden');
+            elements.mainApp.classList.remove('hidden');
+        }
 
-            function formatDate(dateString) {
-                if (!dateString || isNaN(new Date(dateString))) return '-';
-                const date = new Date(dateString);
-                const day = ('0' + date.getUTCDate()).slice(-2);
-                const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-                const month = monthNames[date.getUTCMonth()];
-                const year = date.getUTCFullYear();
-                return `${day} ${month} ${year}`;
-            }
-
-            async function loadProfileInfo() {
-                const displayDiv = document.getElementById('profile-display');
-                displayDiv.innerHTML = '<p>Loading info...</p>';
-                try {
-                    const url = new URL(MASTER_SCRIPT_URL);
-                    url.searchParams.append('action', 'getMemberInfo');
-                    url.searchParams.append('userId', userProfile.userId);
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (result.success) {
-                        displayDiv.innerHTML = `
-                            <div class="form-group"><label>รหัสสมาชิก</label><p class="p-2 bg-gray-100 rounded-md font-bold text-lg">${result.data.customerId || '-'}</p></div>
-                            <div class="form-group"><label>ชื่อเล่น</label><p class="p-2 bg-gray-100 rounded-md">${result.data.nickname || '-'}</p></div>
-                            <div class="form-group"><label>ชื่อจริง</label><p class="p-2 bg-gray-100 rounded-md">${result.data.firstname || '-'}</p></div>
-                            <div class="form-group"><label>นามสกุล</label><p class="p-2 bg-gray-100 rounded-md">${result.data.lastname || '-'}</p></div>
-                            <div class="form-group"><label>วันเกิด</label><p class="p-2 bg-gray-100 rounded-md">${formatDate(result.data.birthdate)}</p></div>
-                            <div class="form-group"><label>เพศ</label><p class="p-2 bg-gray-100 rounded-md">${result.data.gender || '-'}</p></div>
-                            <div class="form-group"><label>เบอร์โทรศัพท์</label><p class="p-2 bg-gray-100 rounded-md">${result.data.tel || '-'}</p></div>
-                            <button id="edit-btn" class="w-full p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold">แก้ไขข้อมูล</button>
-                        `;
-                        document.getElementById('edit-btn').addEventListener('click', () => showEditForm(result.data));
-                    } else { throw new Error(result.message); }
-                } catch (error) { displayDiv.innerHTML = `<p class="text-red-500">Failed to load info: ${error.message}</p>`; }
-            }
-            
-            refreshBtn.addEventListener('click', async () => {
-                if (!userProfile) return;
-                refreshIcon.classList.add('hidden');
-                refreshSpinner.classList.remove('hidden');
-                try {
-                    await getUserInitialData(userProfile.userId);
-                } catch (error) {
-                    console.error("Refresh failed", error);
-                } finally {
-                    refreshIcon.classList.remove('hidden');
-                    refreshSpinner.classList.add('hidden');
+        async function loadUserData() {
+            try {
+                showRefreshSpinner(true);
+                const result = await apiGet('getInitialData', { userId: userProfile.userId });
+                
+                if (result.success) {
+                    const data = result.data;
+                    
+                    if (data.isMember) {
+                        memberData = data.memberInfo;
+                        showMemberDashboard(data.activeSession);
+                        updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
+                    } else {
+                        showRegistrationScreen();
+                        updateMembershipStatus('📝 ยังไม่ได้ลงทะเบียน', 'bg-yellow-500');
+                    }
+                } else {
+                    throw new Error(result.message);
                 }
-            });
+                
+            } catch (error) {
+                console.error('Load user data error:', error);
+                showError(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
+            } finally {
+                showRefreshSpinner(false);
+            }
+        }
+
+        function updateMembershipStatus(text, bgClass) {
+            elements.membershipStatus.textContent = text;
+            elements.membershipStatus.className = `px-3 py-1 rounded-full text-sm font-medium text-white ${bgClass}`;
+        }
+
+        function showRefreshSpinner(show) {
+            if (show) {
+                elements.refreshIcon.classList.add('hidden');
+                elements.refreshSpinner.classList.remove('hidden');
+            } else {
+                elements.refreshIcon.classList.remove('hidden');
+                elements.refreshSpinner.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            elements.errorScreen.classList.remove('hidden');
+            elements.loadingScreen.classList.add('hidden');
+        }
+
+        function showRegistrationScreen() {
+            elements.registrationScreen.classList.remove('hidden');
+            elements.memberDashboard.classList.add('hidden');
+        }
+
+        function showMemberDashboard(activeSession) {
+            elements.registrationScreen.classList.add('hidden');
+            elements.memberDashboard.classList.remove('hidden');
             
-            function showRegistrationForm() {
-                document.getElementById('member-app-section').style.display = 'none';
-                document.getElementById('registration-section').style.display = 'block';
+            generateQRCode();
+            populateMemberInfo();
+            
+            if (activeSession) {
+                displayActiveSession(activeSession);
+            } else {
+                displayNoActiveSession();
             }
-            function generateQrCode(userId) {
-                const qrContainer = document.getElementById('qr-code-container');
-                qrContainer.innerHTML = '';
-                try { new QRCode(qrContainer, { text: userId, width: 256, height: 256 }); }
-                catch (error) { showErrorState('Could not generate the QR code.'); }
-            }
-            function showEditForm(data) {
-                document.getElementById('profile-display').style.display = 'none';
-                const formDiv = document.getElementById('profile-edit-form');
-                formDiv.innerHTML = `
-                    <div class="form-group"><label for="edit-nickname">ชื่อเล่น</label><input type="text" id="edit-nickname" value="${data.nickname || ''}" required></div>
-                    <div class="form-group"><label for="edit-firstname">ชื่อจริง</label><input type="text" id="edit-firstname" value="${data.firstname || ''}" required></div>
-                    <div class="form-group"><label for="edit-lastname">นามสกุล</label><input type="text" id="edit-lastname" value="${data.lastname || ''}" required></div>
-                    <div class="form-group"><label for="edit-birthdate">วันเกิด</label><input type="date" id="edit-birthdate" value="${data.birthdate || ''}"></div>
-                    <div class="form-group"><label for="edit-gender">เพศ</label>
-                        <select id="edit-gender">
-                            <option value="" ${!data.gender ? 'selected' : ''}>-- ไม่ระบุ --</option>
-                            <option value="Male" ${data.gender === 'Male' ? 'selected' : ''}>ชาย</option>
-                            <option value="Female" ${data.gender === 'Female' ? 'selected' : ''}>หญิง</option>
-                            <option value="Other" ${data.gender === 'Other' ? 'selected' : ''}>อื่นๆ</option>
-                        </select>
-                    </div>
-                    <div class="form-group"><label for="edit-tel">เบอร์โทรศัพท์</label><input type="tel" id="edit-tel" value="${data.tel || ''}" required></div>
-                    <button id="save-btn" class="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold">บันทึก</button>
-                    <button id="cancel-btn" type="button" class="w-full mt-2 p-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold">ยกเลิก</button>
-                `;
-                formDiv.style.display = 'block';
-                document.getElementById('save-btn').addEventListener('click', handleSaveInfo);
-                document.getElementById('cancel-btn').addEventListener('click', () => {
-                    formDiv.style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
+            
+            switchTab(currentTab);
+        }
+
+        function generateQRCode() {
+            const qrContainer = document.getElementById('qr-code');
+            qrContainer.innerHTML = '';
+            
+            try {
+                new QRCode(qrContainer, {
+                    text: userProfile.userId,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
                 });
+                
+                // Update member info for QR display
+                document.getElementById('qr-member-name').textContent = memberData?.nickname || 'ไม่ระบุ';
+                document.getElementById('qr-member-id').textContent = memberData?.customerId || 'ไม่ระบุ';
+                
+            } catch (error) {
+                qrContainer.innerHTML = '<p class="text-red-500">ไม่สามารถสร้าง QR Code ได้</p>';
             }
-            async function handleSaveInfo() {
-                const saveBtn = document.getElementById('save-btn');
-                saveBtn.disabled = true;
-                saveBtn.textContent = 'กำลังบันทึก...';
+        }
+
+        function populateMemberInfo() {
+            const profileInfo = document.getElementById('profile-info');
+            
+            if (memberData) {
+                profileInfo.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl">
+                            <span class="text-gray-600">รหัสสมาชิก</span>
+                            <span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">ชื่อเล่น</span>
+                            <span class="font-semibold">${memberData.nickname || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">ชื่อจริง</span>
+                            <span class="font-semibold">${memberData.firstName || '-'} ${memberData.lastName || ''}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">วันเกิด</span>
+                            <span class="font-semibold">${formatDate(memberData.birthdate)}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">เพศ</span>
+                            <span class="font-semibold">${formatGender(memberData.gender)}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">เบอร์โทรศัพท์</span>
+                            <span class="font-semibold">${memberData.phone || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                            <span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span>
+                            <span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayActiveSession(session) {
+            document.getElementById('active-session-display').classList.remove('hidden');
+            document.getElementById('no-session-display').classList.add('hidden');
+            
+            // Update session info
+            document.getElementById('session-branch').textContent = session.branch;
+            document.getElementById('session-table').textContent = session.table;
+            
+            // Display players if more than 1
+            if (session.players && session.players.length > 1) {
+                const playersSection = document.getElementById('session-players');
+                const playersList = document.getElementById('players-list');
+                
+                let playersHtml = '';
+                session.players.forEach(player => {
+                    const isCurrentUser = player.userId === userProfile.userId;
+                    playersHtml += `
+                        <div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'} rounded-xl">
+                            <span class="font-medium ${isCurrentUser ? 'text-blue-800' : 'text-gray-700'}">
+                                ${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}
+                            </span>
+                            <span class="text-sm text-gray-600">${player.ticketType || 'ไม่ระบุ'}</span>
+                        </div>
+                    `;
+                });
+                
+                playersList.innerHTML = playersHtml;
+                playersSection.classList.remove('hidden');
+            }
+            
+            // Start timer
+            startSessionTimer(session.checkInTime);
+        }
+
+        function displayNoActiveSession() {
+            document.getElementById('active-session-display').classList.add('hidden');
+            document.getElementById('no-session-display').classList.remove('hidden');
+            
+            // Stop timer if running
+            if (sessionTimer) {
+                clearInterval(sessionTimer);
+                sessionTimer = null;
+            }
+        }
+
+        function startSessionTimer(checkInTime) {
+            if (sessionTimer) clearInterval(sessionTimer);
+            
+            const startTime = new Date(checkInTime).getTime();
+            const timerDisplay = document.getElementById('session-timer');
+            
+            sessionTimer = setInterval(() => {
+                const now = new Date().getTime();
+                const elapsed = now - startTime;
+                
+                const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+                
+                timerDisplay.textContent = 
+                    String(hours).padStart(2, '0') + ':' +
+                    String(minutes).padStart(2, '0') + ':' +
+                    String(seconds).padStart(2, '0');
+                    
+                // Change color based on duration
+                if (hours >= 3) {
+                    timerDisplay.className = 'text-6xl font-bold mb-2 text-red-600';
+                } else if (hours >= 2) {
+                    timerDisplay.className = 'text-6xl font-bold mb-2 text-orange-500';
+                } else {
+                    timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
+                }
+            }, 1000);
+        }
+
+        // Tab Management
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
+        }
+
+        // Registration Functions
+        async function handleRegistration(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('reg-submit-btn');
+            const nickname = document.getElementById('reg-nickname').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            
+            if (!nickname || !phone) {
+                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
+            
+            try {
                 const payload = {
-                    action: 'updateMemberInfo', userId: userProfile.userId,
+                    action: 'registerMember',
+                    userId: userProfile.userId,
+                    displayName: userProfile.displayName,
+                    pictureUrl: userProfile.pictureUrl,
+                    nickname: nickname,
+                    phone: phone
+                };
+                
+                const result = await apiPost(payload);
+                
+                if (result.success) {
+                    // Registration successful, reload user data
+                    memberData = {
+                        customerId: result.data.customerId,
+                        nickname: nickname,
+                        phone: phone
+                    };
+                    
+                    showMemberDashboard(null);
+                    updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
+                    
+                } else {
+                    throw new Error(result.message);
+                }
+                
+            } catch (error) {
+                alert(`เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚀 ลงทะเบียนเลย!';
+            }
+        }
+
+        // Profile Management
+        function showProfileEdit() {
+            document.getElementById('profile-display').classList.add('hidden');
+            document.getElementById('profile-edit').classList.remove('hidden');
+            
+            // Populate form with current data
+            if (memberData) {
+                document.getElementById('edit-firstname').value = memberData.firstName || '';
+                document.getElementById('edit-lastname').value = memberData.lastName || '';
+                document.getElementById('edit-nickname').value = memberData.nickname || '';
+                document.getElementById('edit-birthdate').value = memberData.birthdate || '';
+                document.getElementById('edit-gender').value = memberData.gender || '';
+                document.getElementById('edit-phone').value = memberData.phone || '';
+            }
+        }
+
+        function hideProfileEdit() {
+            document.getElementById('profile-display').classList.remove('hidden');
+            document.getElementById('profile-edit').classList.add('hidden');
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('save-profile-btn');
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '🔄 กำลังบันทึก...';
+            
+            try {
+                const payload = {
+                    action: 'updateMember',
+                    userId: userProfile.userId,
+                    firstName: document.getElementById('edit-firstname').value,
+                    lastName: document.getElementById('edit-lastname').value,
                     nickname: document.getElementById('edit-nickname').value,
-                    firstname: document.getElementById('edit-firstname').value,
-                    lastname: document.getElementById('edit-lastname').value,
                     birthdate: document.getElementById('edit-birthdate').value,
                     gender: document.getElementById('edit-gender').value,
-                    tel: document.getElementById('edit-tel').value
+                    phone: document.getElementById('edit-phone').value
                 };
-                try {
-                    await fetch(MASTER_SCRIPT_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                    document.getElementById('profile-edit-form').style.display = 'none';
-                    document.getElementById('profile-display').style.display = 'block';
-                    loadProfileInfo();
-                } catch (error) {
-                    alert('Failed to save. Please try again.');
-                    saveBtn.disabled = false;
-                    saveBtn.textContent = 'บันทึก';
-                }
-            }
-            document.getElementById('registration-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const submitBtn = document.getElementById('reg-submit-btn');
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'กำลังบันทึก...';
-
-                const url = new URL(MASTER_SCRIPT_URL);
-                url.searchParams.append('action', 'registerMember');
-                url.searchParams.append('userId', userProfile.userId);
-                url.searchParams.append('displayName', userProfile.displayName);
-                url.searchParams.append('pictureUrl', userProfile.pictureUrl || '');
-                url.searchParams.append('nickname', document.getElementById('reg-nickname').value);
-                url.searchParams.append('tel', document.getElementById('reg-tel').value);
-
-                try {
-                    const response = await fetch(url);
-                    const result = await response.json();
-                    if (!result.success) throw new Error(result.message);
+                
+                const result = await apiPost(payload);
+                
+                if (result.success) {
+                    // Update local data
+                    memberData = { ...memberData, ...payload };
+                    populateMemberInfo();
+                    hideProfileEdit();
                     
-                    showMemberApp(userProfile.userId, null, { 
-                        nickname: document.getElementById('reg-nickname').value, 
-                        customerId: result.customerId 
-                    });
-                    document.getElementById('membership-status').textContent = 'Active Member';
-                    document.getElementById('membership-status').className = 'text-sm font-medium text-green-500';
-
-                } catch (error) {
-                    showErrorState('Registration failed: ' + error.message);
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = 'ลงทะเบียน';
+                    // Show success message
+                    alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+                } else {
+                    throw new Error(result.message);
                 }
-            });
-            function showErrorState(message) {
-                document.getElementById('loading-state').style.display = 'none';
-                const errorState = document.getElementById('error-state');
-                errorState.querySelector('#error-message').innerHTML = message;
-                errorState.style.display = 'block';
+                
+            } catch (error) {
+                alert(`เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '💾 บันทึกข้อมูล';
             }
+        }
 
-            main();
-        });
+        // API Functions
+        async function apiGet(action, params = {}) {
+            const url = new URL(API_URL);
+            url.searchParams.append('action', action);
+            Object.entries(params).forEach(([key, value]) => {
+                url.searchParams.append(key, value);
+            });
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+            return await response.json();
+        }
+
+        async function apiPost(payload) {
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
+            return await response.json();
+        }
+
+        // Utility Functions
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            } catch {
+                return '-';
+            }
+        }
+
+        function formatGender(gender) {
+            const genderMap = {
+                'Male': 'ชาย',
+                'Female': 'หญิง',
+                'Other': 'อื่นๆ'
+            };
+            return genderMap[gender] || '-';
+        }
+
+        // Event Listeners
+        document.getElementById('refresh-btn').addEventListener('click', loadUserData);
+        document.getElementById('registration-form').addEventListener('submit', handleRegistration);
+        document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
+        
+        // Tab navigation
+        document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr'));
+        document.getElementById('tab-status').addEventListener('click', () => switchTab('status'));
+        document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile'));
+        
+        // Profile edit buttons
+        document.getElementById('edit-profile-btn').addEventListener('click', showProfileEdit);
+        document.getElementById('cancel-edit-btn').addEventListener('click', hideProfileEdit);
+        
+        // Show QR button
+        document.getElementById('show-qr-btn').addEventListener('click', () => switchTab('qr'));
     </script>
 </body>
 </html>
-
