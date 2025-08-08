@@ -712,7 +712,9 @@
                 
                 let ticketOptions = '<option value="">-- เลือกตั๋ว --</option>';
                 state.tickets.forEach(ticket => {
-                    ticketOptions += `<option value="${JSON.stringify(ticket)}">${ticket.name} - ${formatCurrency(ticket.price)}</option>`;
+                    // Fix: Properly escape JSON for HTML attributes
+                    const ticketJson = JSON.stringify(ticket).replace(/"/g, '&quot;');
+                    ticketOptions += `<option value="${ticketJson}">${ticket.name} - ${formatCurrency(ticket.price)}</option>`;
                 });
 
                 playerDiv.innerHTML = `
@@ -749,8 +751,6 @@
             // Add event listeners for player updates
             document.querySelectorAll('.ticket-select, .customer-type-select').forEach(select => {
                 select.addEventListener('change', updatePlayerInfo);
-                
-                // IMPORTANT: Also trigger on input event for better detection
                 select.addEventListener('input', updatePlayerInfo);
                 
                 // Force check current values in case they're already selected
@@ -784,12 +784,33 @@
             if (isTicketSelect) {
                 if (e.target.value) {
                     try {
-                        const ticketData = JSON.parse(e.target.value);
+                        // Fix: Unescape HTML entities before parsing JSON
+                        const unescapedValue = e.target.value.replace(/&quot;/g, '"');
+                        const ticketData = JSON.parse(unescapedValue);
                         state.currentPlayers[index].selectedTicket = ticketData;
                         console.log(`Player ${index} ticket selected:`, ticketData);
                     } catch (error) {
                         console.error('Error parsing ticket data:', error);
-                        state.currentPlayers[index].selectedTicket = null;
+                        console.log('Raw value:', e.target.value);
+                        console.log('Trying alternative parsing...');
+                        
+                        // Alternative: try to extract ticket info from the selected option text
+                        const selectedOption = e.target.options[e.target.selectedIndex];
+                        if (selectedOption && selectedOption.text) {
+                            const text = selectedOption.text; // e.g., "70THB/Hrs - ฿70"
+                            const parts = text.split(' - ฿');
+                            if (parts.length === 2) {
+                                const ticketData = {
+                                    name: parts[0],
+                                    price: parseFloat(parts[1]) || 0,
+                                    type: 'PARSED'
+                                };
+                                state.currentPlayers[index].selectedTicket = ticketData;
+                                console.log(`Player ${index} ticket parsed from text:`, ticketData);
+                            }
+                        } else {
+                            state.currentPlayers[index].selectedTicket = null;
+                        }
                     }
                 } else {
                     state.currentPlayers[index].selectedTicket = null;
