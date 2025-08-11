@@ -269,7 +269,7 @@
 
     <script>
         // Configuration
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyNeEitlM0MvHA1qokQO6M04JIt7eYBlZbEGoqWiwc373FEAf5Ox5g9a0YIi8lT_bU7aA/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbz3ZgUNsXBtldRGEOEMjFx3qBYy-3-3XYnZqDWFLr98_zmedokMKsXhdHBK6mTEFVG-1Q/exec';
         
         // Application State
         const state = {
@@ -329,6 +329,31 @@
             return await response.json();
         }
 
+        // Improve error handling
+function improvedApiCall(apiFunction, ...args) {
+    return new Promise(async (resolve, reject) => {
+        try {
+            showStatus('กำลังประมวลผล...', 'info', 0);
+            const result = await apiFunction(...args);
+            
+            if (!result || typeof result !== 'object') {
+                throw new Error('Invalid response from server');
+            }
+            
+            if (!result.success) {
+                throw new Error(result.message || 'Unknown server error');
+            }
+            
+            hideStatus();
+            resolve(result);
+        } catch (error) {
+            console.error('API Call Error:', error);
+            showStatus(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
+            reject(error);
+        }
+    });
+}
+        
         // Utility Functions
         function showStatus(message, type = 'info', duration = 5000) {
             const statusMessage = elements.statusMessage;
@@ -499,6 +524,30 @@
             }
         }
 
+        function validateCheckoutButton() {
+    const confirmBtn = document.getElementById('confirm-checkin-btn');
+    const players = state.currentPlayers;
+    
+    // Check if all players have required data
+    const allValid = players.every(player => {
+        const ticketSelect = document.querySelector(`[data-player="${player.id}"] .ticket-select`);
+        const typeSelect = document.querySelector(`[data-player="${player.id}"] .customer-type-select`);
+        
+        return ticketSelect && ticketSelect.value && 
+               typeSelect && typeSelect.value;
+    });
+    
+    if (allValid && players.length > 0) {
+        confirmBtn.disabled = false;
+        confirmBtn.className = 'flex-1 btn-primary';
+        confirmBtn.textContent = '✅ ยืนยันการ Check-in';
+    } else {
+        confirmBtn.disabled = true;
+        confirmBtn.className = 'flex-1 bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg opacity-50 cursor-not-allowed';
+        confirmBtn.textContent = '✅ เลือกตั๋วและประเภทลูกค้าก่อน';
+    }
+}
+        
         function resetScannerUI() {
             const scannerContainer = document.getElementById('qr-scanner');
             scannerContainer.innerHTML = `
@@ -556,26 +605,59 @@
             }
         }
 
-        async function handleCustomerFound(userId, source) {
-            showStatus('กำลังโหลดข้อมูลลูกค้า...', 'info', 0);
-            
-            try {
-                const result = await apiGet('getInitialData', { userId });
-                if (result.success) {
-                    state.customer = result.data;
-                    
-                    // IMPORTANT: Store the actual userId for later use
-                    if (state.customer.memberInfo) {
-                        state.customer.memberInfo.userId = userId; // Ensure we have the actual LINE User ID
-                        state.customer.userId = userId; // Also store it at top level
-                    } else {
-                        // For non-members, still store the userId
-                        state.customer = {
-                            ...state.customer,
-                            userId: userId,
-                            memberInfo: null
-                        };
-                    }
+async function handleCustomerFound(userId, source) {
+    try {
+        const result = await improvedApiCall(apiGet, 'getInitialData', { userId });
+        state.customer = result.data;
+        
+        // Ensure userId is properly stored
+        if (state.customer.memberInfo) {
+            state.customer.memberInfo.userId = userId;
+            state.customer.userId = userId;
+        } else {
+            state.customer = {
+                ...state.customer,
+                userId: userId,
+                memberInfo: null
+            };
+        }
+        
+        displayCustomerInfo();
+        
+        if (state.customer.activeSession) {
+            displayActiveSession();
+        } else {
+            displayNewSessionForm();
+        }
+        
+        showScreen('customer-section');
+        
+        const customerName = state.customer.memberInfo?.nickname || 'Guest';
+        showStatus(`พบลูกค้า: ${customerName}`, 'success');
+        
+    } catch (error) {
+        // Error already handled by improvedApiCall
+    }
+}
+
+        
+        displayCustomerInfo();
+        
+        if (state.customer.activeSession) {
+            displayActiveSession();
+        } else {
+            displayNewSessionForm();
+        }
+        
+        showScreen('customer-section');
+        
+        const customerName = state.customer.memberInfo?.nickname || 'Guest';
+        showStatus(`พบลูกค้า: ${customerName}`, 'success');
+        
+    } catch (error) {
+        // Error already handled by improvedApiCall
+    }
+}
                     
                     displayCustomerInfo();
                     
@@ -589,4 +671,5 @@
                     
                     const customerName = state.customer.memberInfo?.nickname || 'Guest';
                     showStatus(`พบลูกค้า: ${customerName} (UserID: ${userId})`, 'success');
+
 
