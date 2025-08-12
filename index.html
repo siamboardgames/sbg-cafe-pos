@@ -300,27 +300,58 @@
             setupScannerEvents();
         }
 
-        // API Functions
+        // FIXED: Added robust API functions with timeouts
         async function apiGet(action, params = {}) {
-            const url = new URL(API_URL);
-            url.searchParams.append('action', action);
-            Object.entries(params).forEach(([key, value]) => {
-                url.searchParams.append(key, value);
-            });
+            try {
+                const url = new URL(API_URL);
+                url.searchParams.append('action', action);
+                Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
 
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-            return await response.json();
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                const response = await fetch(url, { signal: controller.signal });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                
+                const result = await response.json();
+                return result;
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
+                }
+                throw error;
+            }
         }
 
         async function apiPost(payload) {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-            return await response.json();
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                
+                const result = await response.json();
+                return result;
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
+                }
+                throw error;
+            }
         }
 
         function improvedApiCall(apiFunction, ...args) {
@@ -475,7 +506,7 @@
                 document.getElementById('loading-screen').innerHTML = `
                     <div class="text-center p-4">
                         <p class="text-red-600 font-bold">เกิดข้อผิดพลาดร้ายแรง</p>
-                        <p class="text-gray-700 mt-2">ไม่สามารถโหลดข้อมูลตั๋วได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ตแล้วลองรีเฟรชหน้าเว็บ</p>
+                        <p class="text-gray-700 mt-2">ไม่สามารถโหลดข้อมูลตั๋วได้: ${error.message}</p>
                         <button onclick="location.reload()" class="mt-4 btn-danger">รีเฟรช</button>
                     </div>
                 `;
