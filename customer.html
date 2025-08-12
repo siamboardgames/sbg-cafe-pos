@@ -1,8 +1,328 @@
-<script>
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Games Cafe - Customer</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .content {
+            padding: 30px 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-bottom: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .member-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+
+        .member-id {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .member-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .qr-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .qr-code {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+        }
+
+        .timer-display {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .timer-display h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .timer {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ee5a24;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .edit-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .edit-form h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Loading Screen -->
+        <div id="loadingScreen" class="loading">
+            <div class="loading-spinner"></div>
+            <p>กำลังเชื่อมต่อ...</p>
+        </div>
+
+        <!-- Registration Form -->
+        <div id="registrationForm" class="hidden">
+            <div class="header">
+                <h1>🎲 Board Games Cafe</h1>
+                <p>สมัครสมาชิกใหม่</p>
+            </div>
+            <div class="content">
+                <div id="regError" class="error hidden"></div>
+                <div id="regSuccess" class="success hidden"></div>
+                
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="nickname">ชื่อเล่น *</label>
+                        <input type="text" id="nickname" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">เบอร์โทรศัพท์ *</label>
+                        <input type="tel" id="phone" required maxlength="15" pattern="[0-9+\-\s()]{8,15}">
+                    </div>
+                    <div class="form-group">
+                        <label for="email">อีเมล (ไม่บังคับ)</label>
+                        <input type="email" id="email" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="birthday">วันเกิด (ไม่บังคับ)</label>
+                        <input type="date" id="birthday">
+                    </div>
+                    <button type="submit" class="btn" id="registerBtn">สมัครสมาชิก</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Member Dashboard -->
+        <div id="memberDashboard" class="hidden">
+            <div class="header">
+                <h1>🎲 Board Games Cafe</h1>
+                <p>สมาชิก</p>
+            </div>
+            <div class="content">
+                <!-- Member Card -->
+                <div class="member-card">
+                    <div class="member-id" id="memberId"></div>
+                    <div class="member-info">
+                        <span>ชื่อ:</span>
+                        <span id="memberName"></span>
+                    </div>
+                    <div class="member-info">
+                        <span>แต้มสะสม:</span>
+                        <span id="memberPoints">0 แต้ม</span>
+                    </div>
+                </div>
+
+                <!-- QR Code -->
+                <div class="qr-container">
+                    <h3>QR Code สำหรับ Check-in/Check-out</h3>
+                    <div class="qr-code">
+                        <canvas id="qrcode"></canvas>
+                    </div>
+                </div>
+
+                <!-- Timer Display (shown when playing) -->
+                <div id="timerDisplay" class="timer-display hidden">
+                    <h3>⏰ กำลังเล่น</h3>
+                    <div class="timer" id="playTimer">00:00:00</div>
+                </div>
+
+                <!-- Action Buttons -->
+                <button class="btn" onclick="toggleEditForm()" id="editBtn">แก้ไขข้อมูลส่วนตัว</button>
+                <button class="btn btn-secondary" onclick="refreshData()">รีเฟรชข้อมูล</button>
+
+                <!-- Edit Form -->
+                <div id="editForm" class="edit-form hidden">
+                    <h3>แก้ไขข้อมูลส่วนตัว</h3>
+                    <div id="editError" class="error hidden"></div>
+                    <div id="editSuccess" class="success hidden"></div>
+                    
+                    <form id="updateForm">
+                        <div class="form-group">
+                            <label for="editNickname">ชื่อเล่น</label>
+                            <input type="text" id="editNickname" maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="editPhone">เบอร์โทรศัพท์</label>
+                            <input type="tel" id="editPhone" maxlength="15" pattern="[0-9+\-\s()]{8,15}">
+                        </div>
+                        <div class="form-group">
+                            <label for="editEmail">อีเมล</label>
+                            <input type="email" id="editEmail" maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="editBirthday">วันเกิด</label>
+                            <input type="date" id="editBirthday">
+                        </div>
+                        <button type="submit" class="btn" id="updateBtn">บันทึกการแก้ไข</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
     // Configuration
     const CONFIG = {
-        LIFF_ID: '2007836924-1X8GmJKj',
-        APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzne8aEl6Zro3679P05ncik8GMhuEmMtQGdOTTF248FQjHdxSDysg1loZgqZ1sq614VUw/exec'
+        LIFF_ID: '2007836924-1X8GmJKj', // ใส่ LIFF ID ของคุณที่นี่
+        APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzne8aEl6Zro3679P05ncik8GMhuEmMtQGdOTTF248FQjHdxSDysg1loZgqZ1sq614VUw/exec' // ใส่ URL ของ Web App ที่ Deploy แล้ว
     };
 
     // Global variables
@@ -11,7 +331,7 @@
     let playStartTime = null;
     let timerInterval = null;
 
-    // API Helper Class (Lass's Enhanced Version)
+    // API Helper Class
     class APIClient {
         static async post(action, data = {}) {
             try {
@@ -20,9 +340,9 @@
 
                 const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'cors', // Important for cross-origin requests
+                    mode: 'cors',
                     credentials: 'omit',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // Use text/plain for Apps Script
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(requestBody),
                     redirect: 'follow'
                 });
@@ -40,27 +360,21 @@
             }
         }
 
-        // --- Public API calls ---
         static getCustomer(lineId) {
             return this.post('getCustomer', { lineId });
         }
-
         static registerCustomer(customerData) {
             return this.post('registerCustomer', customerData);
         }
-        
-        // NEW: For customer to update their own profile
         static updateCustomerProfile(lineId, updateData) {
             return this.post('updateCustomerProfile', { lineId, updateData });
         }
-
-        // NEW: For customer to check their own playing status
         static getActiveOrder(lineId) {
             return this.post('getActiveOrderByLineId', { lineId });
         }
     }
 
-    // LIFF Initialization
+    // Main App Initialization
     async function initializeLiff() {
         try {
             showLoading(true);
@@ -73,25 +387,23 @@
 
             currentLineProfile = await liff.getProfile();
             console.log('LINE Profile:', currentLineProfile);
-
             await checkCustomerStatus(currentLineProfile.userId);
 
         } catch (error) {
             console.error('LIFF initialization failed:', error);
-            showError('การเชื่อมต่อ LINE ล้มเหลว กรุณาลองใหม่อีกครั้ง');
+            showError('การเชื่อมต่อ LINE ล้มเหลว กรุณาตรวจสอบการตั้งค่า LIFF');
             showLoading(false);
         }
     }
 
-    // Check customer status and playing status from Backend
+    // Data Fetching and State Management
     async function checkCustomerStatus(lineId) {
         try {
             const result = await APIClient.getCustomer(lineId);
-            
             if (result.success) {
                 currentCustomer = result.customer;
                 showMemberDashboard();
-                await checkPlayingStatus(); // Check playing status after showing dashboard
+                await checkPlayingStatus();
             } else {
                 showRegistrationForm();
             }
@@ -103,136 +415,6 @@
         }
     }
 
-    // Show registration form
-    function showRegistrationForm() {
-        hideAllScreens();
-        document.getElementById('registrationForm').classList.remove('hidden');
-        if (currentLineProfile) {
-            document.getElementById('nickname').value = currentLineProfile.displayName || '';
-        }
-    }
-
-    // Show member dashboard and update UI
-    function showMemberDashboard() {
-        hideAllScreens();
-        document.getElementById('memberDashboard').classList.remove('hidden');
-        
-        document.getElementById('memberId').textContent = currentCustomer.customerId;
-        document.getElementById('memberName').textContent = currentCustomer.nickname;
-        document.getElementById('memberPoints').textContent = `${currentCustomer.points || 0} แต้ม`;
-
-        generateQRCode(currentCustomer.customerId);
-        populateEditForm();
-    }
-
-    // Register new customer
-    async function registerCustomer(event) {
-        event.preventDefault();
-        const submitBtn = document.getElementById('registerBtn');
-        const originalText = submitBtn.textContent;
-        
-        try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'กำลังสมัคร...';
-            clearMessages('reg');
-
-            const formData = {
-                lineId: currentLineProfile.userId,
-                nickname: document.getElementById('nickname').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                email: document.getElementById('email').value.trim() || null,
-                birthday: document.getElementById('birthday').value || null
-            };
-
-            if (!formData.nickname || !formData.phone) {
-                throw new Error('กรุณากรอกชื่อเล่นและเบอร์โทรศัพท์');
-            }
-
-            const result = await APIClient.registerCustomer(formData);
-
-            if (result.success) {
-                showSuccess('สมัครสมาชิกสำเร็จ!', 'reg');
-                currentCustomer = {
-                    customerId: result.customerId,
-                    ...formData,
-                    points: 0
-                };
-                setTimeout(() => {
-                    showMemberDashboard();
-                    checkPlayingStatus();
-                }, 1500);
-            } else {
-                throw new Error(result.message || 'การสมัครสมาชิกล้มเหลว');
-            }
-        } catch (error) {
-            console.error('Registration error:', error);
-            showError(error.message, 'reg');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    }
-
-    // Update customer information
-    async function updateCustomerProfile(event) {
-        event.preventDefault();
-        const submitBtn = document.getElementById('updateBtn');
-        const originalText = submitBtn.textContent;
-        
-        try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'กำลังบันทึก...';
-            clearMessages('edit');
-
-            const updateData = {
-                nickname: document.getElementById('editNickname').value.trim(),
-                phone: document.getElementById('editPhone').value.trim(),
-                email: document.getElementById('editEmail').value.trim() || null,
-                birthday: document.getElementById('editBirthday').value || null
-            };
-
-            const result = await APIClient.updateCustomerProfile(currentLineProfile.userId, updateData);
-
-            if (result.success) {
-                showSuccess('บันทึกข้อมูลสำเร็จ!', 'edit');
-                // Update local data and UI
-                currentCustomer = { ...currentCustomer, ...updateData };
-                document.getElementById('memberName').textContent = currentCustomer.nickname;
-                setTimeout(toggleEditForm, 1500);
-            } else {
-                throw new Error(result.message || 'การแก้ไขข้อมูลล้มเหลว');
-            }
-        } catch (error) {
-            console.error('Update error:', error);
-            showError(error.message, 'edit');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
-        }
-    }
-
-    // Populate edit form with current data
-    function populateEditForm() {
-        if (currentCustomer) {
-            document.getElementById('editNickname').value = currentCustomer.nickname;
-            document.getElementById('editPhone').value = currentCustomer.phone;
-            document.getElementById('editEmail').value = currentCustomer.email || '';
-            document.getElementById('editBirthday').value = currentCustomer.birthday || '';
-        }
-    }
-
-    // Generate QR Code
-    function generateQRCode(customerId) {
-        QRCode.toCanvas(document.getElementById('qrcode'), customerId, {
-            width: 200,
-            margin: 2,
-            color: { dark: '#000000', light: '#FFFFFF' }
-        }, function (error) {
-            if (error) console.error('QR Code generation error:', error);
-        });
-    }
-
-    // Check playing status from Backend
     async function checkPlayingStatus() {
         if (!currentCustomer) return;
         try {
@@ -249,111 +431,185 @@
         }
     }
 
-    // Timer functions
+    // Form Handlers
+    async function registerCustomer(event) {
+        event.preventDefault();
+        const submitBtn = document.getElementById('registerBtn');
+        const originalText = submitBtn.textContent;
+        try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'กำลังสมัคร...';
+            clearMessages('reg');
+            const formData = {
+                lineId: currentLineProfile.userId,
+                nickname: document.getElementById('nickname').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                email: document.getElementById('email').value.trim() || null,
+                birthday: document.getElementById('birthday').value || null
+            };
+            if (!formData.nickname || !formData.phone) throw new Error('กรุณากรอกชื่อเล่นและเบอร์โทรศัพท์');
+            const result = await APIClient.registerCustomer(formData);
+            if (result.success) {
+                showSuccess('สมัครสมาชิกสำเร็จ!', 'reg');
+                currentCustomer = { customerId: result.customerId, ...formData, points: 0 };
+                setTimeout(() => {
+                    showMemberDashboard();
+                    checkPlayingStatus();
+                }, 1500);
+            } else {
+                throw new Error(result.message || 'การสมัครสมาชิกล้มเหลว');
+            }
+        } catch (error) {
+            console.error('Registration error:', error);
+            showError(error.message, 'reg');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+
+    async function updateCustomerProfile(event) {
+        event.preventDefault();
+        const submitBtn = document.getElementById('updateBtn');
+        const originalText = submitBtn.textContent;
+        try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'กำลังบันทึก...';
+            clearMessages('edit');
+            const updateData = {
+                nickname: document.getElementById('editNickname').value.trim(),
+                phone: document.getElementById('editPhone').value.trim(),
+                email: document.getElementById('editEmail').value.trim() || null,
+                birthday: document.getElementById('editBirthday').value || null
+            };
+            const result = await APIClient.updateCustomerProfile(currentLineProfile.userId, updateData);
+            if (result.success) {
+                showSuccess('บันทึกข้อมูลสำเร็จ!', 'edit');
+                currentCustomer = { ...currentCustomer, ...updateData };
+                document.getElementById('memberName').textContent = currentCustomer.nickname;
+                setTimeout(toggleEditForm, 1500);
+            } else {
+                throw new Error(result.message || 'การแก้ไขข้อมูลล้มเหลว');
+            }
+        } catch (error) {
+            console.error('Update error:', error);
+            showError(error.message, 'edit');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    }
+    
+    // UI Update Functions
+    function showRegistrationForm() {
+        hideAllScreens();
+        document.getElementById('registrationForm').classList.remove('hidden');
+        if (currentLineProfile) {
+            document.getElementById('nickname').value = currentLineProfile.displayName || '';
+        }
+    }
+    function showMemberDashboard() {
+        hideAllScreens();
+        document.getElementById('memberDashboard').classList.remove('hidden');
+        document.getElementById('memberId').textContent = currentCustomer.customerId;
+        document.getElementById('memberName').textContent = currentCustomer.nickname;
+        document.getElementById('memberPoints').textContent = `${currentCustomer.points || 0} แต้ม`;
+        generateQRCode(currentCustomer.customerId);
+        populateEditForm();
+    }
+    function populateEditForm() {
+        if (currentCustomer) {
+            document.getElementById('editNickname').value = currentCustomer.nickname;
+            document.getElementById('editPhone').value = currentCustomer.phone;
+            document.getElementById('editEmail').value = currentCustomer.email || '';
+            document.getElementById('editBirthday').value = currentCustomer.birthday || '';
+        }
+    }
+    function generateQRCode(customerId) {
+        QRCode.toCanvas(document.getElementById('qrcode'), customerId, {
+            width: 200, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
+        }, (error) => { if (error) console.error('QR Code generation error:', error); });
+    }
     function startTimer() {
         document.getElementById('timerDisplay').classList.remove('hidden');
         if (timerInterval) clearInterval(timerInterval);
-        
         timerInterval = setInterval(() => {
             if (!playStartTime) return;
-            const now = new Date();
-            const elapsed = now - playStartTime;
+            const elapsed = new Date() - playStartTime;
             const hours = Math.floor(elapsed / 3600000);
             const minutes = Math.floor((elapsed % 3600000) / 60000);
             const seconds = Math.floor((elapsed % 60000) / 1000);
-            
-            const timeString = 
-                hours.toString().padStart(2, '0') + ':' +
-                minutes.toString().padStart(2, '0') + ':' +
-                seconds.toString().padStart(2, '0');
-            
+            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             document.getElementById('playTimer').textContent = timeString;
         }, 1000);
     }
-
     function stopTimer() {
-        if (timerInterval) {
-            clearInterval(timerInterval);
-            timerInterval = null;
-        }
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = null;
         document.getElementById('timerDisplay').classList.add('hidden');
         playStartTime = null;
     }
 
-    // UI Helper functions
+    // UI Helper Functions
     function toggleEditForm() {
         const editForm = document.getElementById('editForm');
         const editBtn = document.getElementById('editBtn');
-        if (editForm.classList.contains('hidden')) {
-            editForm.classList.remove('hidden');
-            editBtn.textContent = 'ยกเลิกการแก้ไข';
-        } else {
-            editForm.classList.add('hidden');
-            editBtn.textContent = 'แก้ไขข้อมูลส่วนตัว';
-        }
+        const isHidden = editForm.classList.toggle('hidden');
+        editBtn.textContent = isHidden ? 'แก้ไขข้อมูลส่วนตัว' : 'ยกเลิกการแก้ไข';
         clearMessages('edit');
     }
-
     async function refreshData() {
         if (currentLineProfile) {
             showLoading(true);
             await checkCustomerStatus(currentLineProfile.userId);
         }
     }
-
     function hideAllScreens() {
         ['loadingScreen', 'registrationForm', 'memberDashboard'].forEach(id => {
-            document.getElementById(id).classList.add('hidden');
+            document.getElementById(id)?.classList.add('hidden');
         });
     }
-
     function showLoading(show) {
         hideAllScreens();
-        if (show) {
-            document.getElementById('loadingScreen').classList.remove('hidden');
-        }
+        if (show) document.getElementById('loadingScreen').classList.remove('hidden');
     }
-
     function showError(message, prefix = '') {
-        const errorElement = document.getElementById(prefix + 'Error');
+        const errorElement = document.getElementById(`${prefix}Error`);
         if (errorElement) {
             errorElement.textContent = message;
             errorElement.classList.remove('hidden');
         } else {
-            alert(message); // Fallback for critical errors
+            alert(message);
         }
     }
-
     function showSuccess(message, prefix = '') {
-        const successElement = document.getElementById(prefix + 'Success');
+        const successElement = document.getElementById(`${prefix}Success`);
         if (successElement) {
             successElement.textContent = message;
             successElement.classList.remove('hidden');
             setTimeout(() => successElement.classList.add('hidden'), 3000);
         }
     }
-    
     function clearMessages(prefix = '') {
-        const errorElement = document.getElementById(prefix + 'Error');
-        const successElement = document.getElementById(prefix + 'Success');
+        const errorElement = document.getElementById(`${prefix}Error`);
+        const successElement = document.getElementById(`${prefix}Success`);
         if (errorElement) errorElement.classList.add('hidden');
         if (successElement) successElement.classList.add('hidden');
     }
 
-    // Event listeners
+    // --- Main Execution ---
     document.addEventListener('DOMContentLoaded', function() {
+        // Attach form submit listeners
         document.getElementById('registerForm').addEventListener('submit', registerCustomer);
-        // Corrected: The form submission is for the new profile update function
         document.getElementById('updateForm').addEventListener('submit', updateCustomerProfile);
+
+        // Initialize the main application logic
+        initializeLiff();
     });
 
     // Cleanup when page unloads
-    window.addEventListener('beforeunload', function() {
+    window.addEventListener('beforeunload', () => {
         if (timerInterval) clearInterval(timerInterval);
     });
 
-    // Initialize app when page loads
-    window.onload = initializeLiff;
 </script>
-
-
