@@ -222,422 +222,447 @@
     </div>
 
     <script>
-        // Configuration
-        const LIFF_ID = '2007836924-1X8GmJKj';
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzGQTEw-9tsE1Pr-F4K5lsHB79qOpN9nL7218jdlEBTPZUr5P-zV2SORAo0064d1sp1Iw/exec';
-        
-        // Application State
-        let userProfile = null;
-        let memberData = null;
-        let sessionTimer = null;
-        let currentTab = 'qr';
-
-        // DOM Elements
-        const elements = {
-            loadingScreen: document.getElementById('loading-screen'),
-            errorScreen: document.getElementById('error-screen'),
-            mainApp: document.getElementById('main-app'),
-            registrationScreen: document.getElementById('registration-screen'),
-            memberDashboard: document.getElementById('member-dashboard'),
-            userAvatar: document.getElementById('user-avatar'),
-            userName: document.getElementById('user-name'),
-            membershipStatus: document.getElementById('membership-status'),
-            refreshBtn: document.getElementById('refresh-btn'),
-            refreshIcon: document.getElementById('refresh-icon'),
-            refreshSpinner: document.getElementById('refresh-spinner'),
-            errorToast: document.getElementById('error-toast'),
-            successToast: document.getElementById('success-toast')
-        };
-
-        // Initialize Application
-        document.addEventListener('DOMContentLoaded', initializeApp);
-
-        async function initializeApp() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
-
-                userProfile = await liff.getProfile();
-                updateUserInterface();
-                await loadUserData();
-                
-            } catch (error) {
-                console.error('LIFF Initialization Error:', error);
-                showError('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE กรุณาลองใหม่อีกครั้ง');
-            }
-        }
-
-        function updateUserInterface() {
-            elements.userAvatar.src = userProfile.pictureUrl || 'https://placehold.co/64x64/E2E8F0/4A5568?text=L';
-            elements.userName.textContent = userProfile.displayName;
-            elements.loadingScreen.classList.add('hidden');
-            elements.mainApp.classList.remove('hidden');
-        }
-
-        async function loadUserData() {
-            try {
-                showRefreshSpinner(true);
-                const result = await apiGet('getInitialData', { userId: userProfile.userId });
-                
-                if (result.success) {
-                    const data = result.data;
-                    if (data.isMember) {
-                        memberData = data.memberInfo;
-                        showMemberDashboard(data.activeSession);
-                        updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
-                    } else {
-                        showRegistrationScreen();
-                        updateMembershipStatus('📝 ยังไม่ได้ลงทะเบียน', 'bg-yellow-500');
-                    }
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                console.error('Load user data error:', error);
-                showErrorToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
-            } finally {
-                showRefreshSpinner(false);
-            }
-        }
-
-        function updateMembershipStatus(text, bgClass) {
-            elements.membershipStatus.textContent = text;
-            elements.membershipStatus.className = `px-3 py-1 rounded-full text-sm font-medium text-white ${bgClass}`;
-        }
-
-        function showRefreshSpinner(show) {
-            elements.refreshIcon.classList.toggle('hidden', show);
-            elements.refreshSpinner.classList.toggle('hidden', !show);
-        }
-
-        // Toast notification functions
-        function showErrorToast(message) {
-            const toast = elements.errorToast;
-            document.getElementById('error-toast-message').textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 4000);
-        }
-
-        function showSuccessToast(message) {
-            const toast = elements.successToast;
-            document.getElementById('success-toast-message').textContent = message;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        function showError(message) {
-            document.getElementById('error-message').textContent = message;
-            elements.errorScreen.classList.remove('hidden');
-            elements.loadingScreen.classList.add('hidden');
-        }
-
-        function showRegistrationScreen() {
-            elements.registrationScreen.classList.remove('hidden');
-            elements.memberDashboard.classList.add('hidden');
-        }
-
-        function showMemberDashboard(activeSession) {
-            elements.registrationScreen.classList.add('hidden');
-            elements.memberDashboard.classList.remove('hidden');
+        /**
+         * Siam Board Games Customer LIFF App (Refactored)
+         * This script encapsulates all application logic into a single object `SiamBGCApp`
+         * for better organization, readability, and easier debugging.
+         */
+        const SiamBGCApp = {
+            // --- 1. CONFIGURATION & STATE ---
+            config: {
+                LIFF_ID: '2007836924-1X8GmJKj',
+                API_URL: 'https://script.google.com/macros/s/AKfycbzCTab7cOkd9Et3zsAFsVFgLqs2EqoLVL69AqIta-KuDihRv7Jps1Gw2k28gx3fUbQV9Q/exec'
+            },
             
-            generateQRCode();
-            populateMemberInfo();
-            
-            if (activeSession) {
-                displayActiveSession(activeSession);
-            } else {
-                displayNoActiveSession();
-                loadRecommendations(); 
-            }
-            
-            switchTab(currentTab);
-        }
+            state: {
+                userProfile: null,
+                memberData: null,
+                sessionTimer: null,
+                currentTab: 'qr'
+            },
 
-        async function loadRecommendations() {
-            try {
-                const result = await apiGet('getRecommendations');
-                const recommendSection = document.getElementById('recommendations-section');
-                const recommendList = document.getElementById('recommendations-list');
-                
-                if (result.success && result.data.length > 0) {
-                    recommendList.innerHTML = result.data.map(game => 
-                        `<p>• <strong>${game.name}</strong> - ${game.description}</p>`
-                    ).join('');
-                    recommendSection.classList.remove('hidden');
-                } else {
-                    recommendSection.classList.add('hidden');
-                }
-            } catch (error) {
-                console.error('Could not load recommendations:', error);
-                document.getElementById('recommendations-section').classList.add('hidden');
-            }
-        }
+            // --- 2. DOM ELEMENT REFERENCES ---
+            elements: {},
 
-        function generateQRCode() {
-            const qrContainer = document.getElementById('qr-code');
-            qrContainer.innerHTML = '';
-            try {
-                QRCode.toCanvas(qrContainer, userProfile.userId, { width: 200, height: 200, errorCorrectionLevel: 'H' }, (error) => {
-                    if (error) throw error;
-                });
-                document.getElementById('qr-member-name').textContent = memberData?.nickname || 'ไม่ระบุ';
-                document.getElementById('qr-member-id').textContent = memberData?.customerId || 'ไม่ระบุ';
-            } catch (error) {
-                console.error('QR Code generation error:', error);
-                qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code</p>';
-                showErrorToast('ไม่สามารถสร้าง QR Code ได้');
-            }
-        }
+            /**
+             * Main initialization function. This is the entry point of the application.
+             */
+            async init() {
+                // Cache all DOM elements for performance
+                this.cacheDOMElements();
+                // Set up all event listeners
+                this.events.setup();
 
-        function populateMemberInfo() {
-            const profileInfo = document.getElementById('profile-info');
-            if (memberData) {
-                profileInfo.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl"><span class="text-gray-600">รหัสสมาชิก</span><span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อเล่น</span><span class="font-semibold">${memberData.nickname || '-'}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อจริง</span><span class="font-semibold">${memberData.firstname || '-'} ${memberData.lastname || ''}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">วันเกิด</span><span class="font-semibold">${formatDate(memberData.birthdate)}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เพศ</span><span class="font-semibold">${formatGender(memberData.gender)}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เบอร์โทรศัพท์</span><span class="font-semibold">${memberData.tel || '-'}</span></div>
-                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl"><span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span><span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span></div>
-                    </div>
-                `;
-            }
-        }
-
-        function displayActiveSession(session) {
-            document.getElementById('active-session-display').classList.remove('hidden');
-            document.getElementById('no-session-display').classList.add('hidden');
-            
-            document.getElementById('session-branch').textContent = session.branch;
-            document.getElementById('session-table').textContent = session.table;
-            
-            const playersContainer = document.getElementById('session-players-container');
-            if (session.players && session.players.length > 1) {
-                const playersList = document.getElementById('session-players-list');
-                playersList.innerHTML = session.players.map(player => {
-                    const isCurrentUser = player.userId === userProfile.userId;
-                    return `<div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50' : 'bg-gray-50'} rounded-xl"><span class="font-medium ${isCurrentUser ? 'text-blue-800' : ''}">${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}</span><span class="text-sm text-gray-600">${player.ticketType || ''}</span></div>`;
-                }).join('');
-                playersContainer.classList.remove('hidden');
-            } else {
-                playersContainer.classList.add('hidden');
-            }
-            
-            startSessionTimer(session.checkInTime);
-        }
-
-        function displayNoActiveSession() {
-            document.getElementById('active-session-display').classList.add('hidden');
-            document.getElementById('no-session-display').classList.remove('hidden');
-            if (sessionTimer) clearInterval(sessionTimer);
-        }
-
-        function startSessionTimer(checkInTime) {
-            if (sessionTimer) clearInterval(sessionTimer);
-            
-            try {
-                const startTime = new Date(checkInTime).getTime();
-                const timerDisplay = document.getElementById('session-timer');
-                if (isNaN(startTime)) throw new Error('Invalid check-in time');
-                
-                sessionTimer = setInterval(() => {
-                    const elapsed = new Date().getTime() - startTime;
-                    if (elapsed < 0) { timerDisplay.textContent = '00:00:00'; return; }
-                    const h = String(Math.floor(elapsed / 3600000)).padStart(2, '0');
-                    const m = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0');
-                    const s = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
-                    timerDisplay.textContent = `${h}:${m}:${s}`;
-                }, 1000);
-            } catch (error) {
-                console.error('Timer error:', error);
-                document.getElementById('session-timer').textContent = 'Error';
-            }
-        }
-
-        // Tab Management
-        function switchTab(tabName) {
-            currentTab = tabName;
-            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
-        }
-
-        // Registration Functions
-        async function handleRegistration(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('reg-submit-btn');
-            const nickname = document.getElementById('reg-nickname').value.trim();
-            const phone = document.getElementById('reg-phone').value.trim();
-            
-            if (!nickname || !phone || !/^[0-9]{9,10}$/.test(phone.replace(/[-\s]/g, ''))) {
-                showErrorToast('กรุณากรอกข้อมูลให้ถูกต้อง');
-                return;
-            }
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
-            
-            try {
-                const payload = { action: 'registerMember', userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl, nickname: nickname, tel: phone };
-                const result = await apiPost(payload);
-                if (result.success) {
-                    showSuccessToast('ลงทะเบียนสำเร็จ!');
-                    await loadUserData();
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '🚀 ลงทะเบียนเลย!';
-            }
-        }
-
-        // Profile Management
-        function showProfileEdit() {
-            document.getElementById('profile-display').classList.add('hidden');
-            document.getElementById('profile-edit').classList.remove('hidden');
-            if (memberData) {
-                document.getElementById('edit-firstname').value = memberData.firstname || '';
-                document.getElementById('edit-lastname').value = memberData.lastname || '';
-                document.getElementById('edit-nickname').value = memberData.nickname || '';
-                document.getElementById('edit-birthdate').value = memberData.birthdate || '';
-                document.getElementById('edit-gender').value = memberData.gender || '';
-                document.getElementById('edit-phone').value = memberData.tel || '';
-            }
-        }
-
-        function hideProfileEdit() {
-            document.getElementById('profile-display').classList.remove('hidden');
-            document.getElementById('profile-edit').classList.add('hidden');
-        }
-
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('save-profile-btn');
-            
-            const formData = {
-                firstname: document.getElementById('edit-firstname').value.trim(),
-                lastname: document.getElementById('edit-lastname').value.trim(),
-                nickname: document.getElementById('edit-nickname').value.trim(),
-                birthdate: document.getElementById('edit-birthdate').value,
-                gender: document.getElementById('edit-gender').value,
-                tel: document.getElementById('edit-phone').value.trim()
-            };
-
-            if (!formData.nickname || !formData.tel) {
-                showErrorToast('กรุณากรอกชื่อเล่นและเบอร์โทร');
-                return;
-            }
-
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '🔄 กำลังบันทึก...';
-            
-            try {
-                const payload = { action: 'updateMemberInfo', userId: userProfile.userId, ...formData };
-                const result = await apiPost(payload);
-                
-                if (result.success && result.data.updatedMember) {
-                    memberData = result.data.updatedMember;
-                    populateMemberInfo();
-                    generateQRCode();
-                    hideProfileEdit();
-                    showSuccessToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
-                } else {
-                    throw new Error(result.message);
-                }
-            } catch (error) {
-                showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '💾 บันทึกข้อมูล';
-            }
-        }
-
-        // API Functions
-        async function apiGet(action, params = {}) {
-            try {
-                const url = new URL(API_URL);
-                url.searchParams.append('action', action);
-                Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-                const response = await fetch(url, { signal: controller.signal });
-                clearTimeout(timeoutId);
-                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                return await response.json();
-            } catch (error) {
-                if (error.name === 'AbortError') throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
-                throw error;
-            }
-        }
-
-        async function apiPost(payload) {
-            try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000);
-                const response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                return await response.json();
-            } catch (error) {
-                if (error.name === 'AbortError') throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
-                throw error;
-            }
-        }
-
-        // Utility Functions
-        function formatDate(dateString) {
-            if (!dateString) return '-';
-            try {
-                const date = new Date(dateString);
-                if (isNaN(date.getTime())) return '-';
-                return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
-            } catch { return '-'; }
-        }
-
-        function formatGender(gender) {
-            return ({ 'Male': 'ชาย', 'Female': 'หญิง', 'Other': 'อื่นๆ' })[gender] || '-';
-        }
-
-        // Event Listeners
-        document.getElementById('refresh-btn').addEventListener('click', loadUserData);
-        document.getElementById('registration-form').addEventListener('submit', handleRegistration);
-        document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
-        document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr'));
-        document.getElementById('tab-status').addEventListener('click', () => switchTab('status'));
-        document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile'));
-        document.getElementById('edit-profile-btn').addEventListener('click', showProfileEdit);
-        document.getElementById('cancel-edit-btn').addEventListener('click', hideProfileEdit);
-        document.getElementById('show-qr-btn').addEventListener('click', () => switchTab('qr'));
-
-        // Auto-refresh session data
-        setInterval(async () => {
-            if (memberData && !document.getElementById('active-session-display').classList.contains('hidden')) {
                 try {
-                    const result = await apiGet('getInitialData', { userId: userProfile.userId });
-                    if (result.success && !result.data.activeSession) {
-                        displayNoActiveSession();
-                        showSuccessToast('เซสชั่นของคุณสิ้นสุดแล้ว');
+                    await liff.init({ liffId: this.config.LIFF_ID });
+                    
+                    if (!liff.isLoggedIn()) {
+                        liff.login();
+                        return; // Stop execution until user is logged in
+                    }
+
+                    this.state.userProfile = await liff.getProfile();
+                    this.ui.updateHeader();
+                    await this.loadInitialData();
+                    
+                } catch (error) {
+                    console.error('LIFF Initialization Error:', error);
+                    this.ui.showErrorScreen('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE กรุณาลองใหม่อีกครั้ง');
+                }
+            },
+
+            /**
+             * Fetches initial user data from the backend and routes to the correct screen.
+             */
+            async loadInitialData() {
+                this.ui.showRefreshSpinner(true);
+                try {
+                    const result = await this.api.get('getInitialData', { userId: this.state.userProfile.userId });
+                    
+                    if (result.data.isMember) {
+                        this.state.memberData = result.data.memberInfo;
+                        this.ui.showMemberDashboard(result.data.activeSession);
+                        this.ui.updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
+                    } else {
+                        this.ui.showRegistrationScreen();
+                        this.ui.updateMembershipStatus('📝 ยังไม่ได้ลงทะเบียน', 'bg-yellow-500');
                     }
                 } catch (error) {
-                    console.error('Auto-refresh error:', error);
+                    console.error('Load user data error:', error);
+                    this.ui.showToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`, 'error');
+                } finally {
+                    this.ui.showRefreshSpinner(false);
                 }
+            },
+
+            // --- 3. API (NETWORK) LOGIC ---
+            api: {
+                async get(action, params = {}) {
+                    const url = new URL(SiamBGCApp.config.API_URL);
+                    url.searchParams.append('action', action);
+                    Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
+                    return this._fetchWithTimeout(url);
+                },
+
+                async post(payload) {
+                    const options = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(payload)
+                    };
+                    return this._fetchWithTimeout(SiamBGCApp.config.API_URL, options);
+                },
+
+                async _fetchWithTimeout(url, options = {}) {
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
+                        
+                        const response = await fetch(url, { ...options, signal: controller.signal });
+                        clearTimeout(timeoutId);
+
+                        if (!response.ok) throw new Error(`Network error: ${response.status}`);
+                        
+                        const result = await response.json();
+                        if (!result.success) throw new Error(result.message || 'Unknown server error');
+
+                        return result;
+                    } catch (error) {
+                        if (error.name === 'AbortError') throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
+                        throw error;
+                    }
+                }
+            },
+
+            // --- 4. UI (USER INTERFACE) LOGIC ---
+            ui: {
+                updateHeader() {
+                    SiamBGCApp.elements.userAvatar.src = SiamBGCApp.state.userProfile.pictureUrl || 'https://placehold.co/64x64/E2E8F0/4A5568?text=L';
+                    SiamBGCApp.elements.userName.textContent = SiamBGCApp.state.userProfile.displayName;
+                    SiamBGCApp.elements.loadingScreen.classList.add('hidden');
+                    SiamBGCApp.elements.mainApp.classList.remove('hidden');
+                },
+
+                showMemberDashboard(activeSession) {
+                    this.showScreen('memberDashboard');
+                    this.renderQRCode();
+                    this.renderProfileInfo();
+                    
+                    if (activeSession) {
+                        this.renderActiveSession(activeSession);
+                    } else {
+                        this.renderNoActiveSession();
+                        this.loadRecommendations();
+                    }
+                    this.switchTab(SiamBGCApp.state.currentTab);
+                },
+
+                renderQRCode() {
+                    const { elements, state, ui } = SiamBGCApp;
+                    elements.qrCodeContainer.innerHTML = '';
+                    try {
+                        QRCode.toCanvas(elements.qrCodeContainer, state.userProfile.userId, { width: 200, height: 200, errorCorrectionLevel: 'H' }, (error) => {
+                            if (error) throw error;
+                        });
+                        elements.qrMemberName.textContent = state.memberData?.nickname || 'ไม่ระบุ';
+                        elements.qrMemberId.textContent = state.memberData?.customerId || 'ไม่ระบุ';
+                    } catch (error) {
+                        console.error('QR Code generation error:', error);
+                        elements.qrCodeContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code</p>';
+                        ui.showToast('ไม่สามารถสร้าง QR Code ได้', 'error');
+                    }
+                },
+
+                renderProfileInfo() {
+                    const { memberData } = SiamBGCApp.state;
+                    const { profileInfoContainer } = SiamBGCApp.elements;
+                    const { formatDate, formatGender } = SiamBGCApp.helpers;
+                    if (memberData) {
+                        profileInfoContainer.innerHTML = `
+                            <div class="space-y-4">
+                                <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl"><span class="text-gray-600">รหัสสมาชิก</span><span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อเล่น</span><span class="font-semibold">${memberData.nickname || '-'}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อจริง</span><span class="font-semibold">${memberData.firstname || '-'} ${memberData.lastname || ''}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">วันเกิด</span><span class="font-semibold">${formatDate(memberData.birthdate)}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เพศ</span><span class="font-semibold">${formatGender(memberData.gender)}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เบอร์โทรศัพท์</span><span class="font-semibold">${memberData.tel || '-'}</span></div>
+                                <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl"><span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span><span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span></div>
+                            </div>
+                        `;
+                    }
+                },
+
+                renderActiveSession(session) {
+                    const { elements, state, ui } = SiamBGCApp;
+                    elements.activeSessionDisplay.classList.remove('hidden');
+                    elements.noSessionDisplay.classList.add('hidden');
+                    elements.sessionBranch.textContent = session.branch;
+                    elements.sessionTable.textContent = session.table;
+                    
+                    if (session.players && session.players.length > 1) {
+                        elements.sessionPlayersList.innerHTML = session.players.map(player => {
+                            const isCurrentUser = player.userId === state.userProfile.userId;
+                            return `<div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50' : 'bg-gray-50'} rounded-xl"><span class="font-medium ${isCurrentUser ? 'text-blue-800' : ''}">${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}</span><span class="text-sm text-gray-600">${player.ticketType || ''}</span></div>`;
+                        }).join('');
+                        elements.sessionPlayersContainer.classList.remove('hidden');
+                    } else {
+                        elements.sessionPlayersContainer.classList.add('hidden');
+                    }
+                    ui.startSessionTimer(session.checkInTime);
+                },
+
+                renderNoActiveSession() {
+                    const { elements, ui } = SiamBGCApp;
+                    elements.activeSessionDisplay.classList.add('hidden');
+                    elements.noSessionDisplay.classList.remove('hidden');
+                    if (SiamBGCApp.state.sessionTimer) clearInterval(SiamBGCApp.state.sessionTimer);
+                },
+                
+                async loadRecommendations() {
+                    try {
+                        const result = await SiamBGCApp.api.get('getRecommendations');
+                        const { recommendationsSection, recommendationsList } = SiamBGCApp.elements;
+                        if (result.data && result.data.length > 0) {
+                            recommendationsList.innerHTML = result.data.map(game => `<p>• <strong>${game.name}</strong> - ${game.description}</p>`).join('');
+                            recommendationsSection.classList.remove('hidden');
+                        } else {
+                            recommendationsSection.classList.add('hidden');
+                        }
+                    } catch (error) {
+                        console.error('Could not load recommendations:', error);
+                        SiamBGCApp.elements.recommendationsSection.classList.add('hidden');
+                    }
+                },
+
+                startSessionTimer(checkInTime) {
+                    if (SiamBGCApp.state.sessionTimer) clearInterval(SiamBGCApp.state.sessionTimer);
+                    try {
+                        const startTime = new Date(checkInTime).getTime();
+                        if (isNaN(startTime)) throw new Error('Invalid check-in time');
+                        
+                        SiamBGCApp.state.sessionTimer = setInterval(() => {
+                            const elapsed = new Date().getTime() - startTime;
+                            if (elapsed < 0) { SiamBGCApp.elements.sessionTimer.textContent = '00:00:00'; return; }
+                            const h = String(Math.floor(elapsed / 3600000)).padStart(2, '0');
+                            const m = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0');
+                            const s = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
+                            SiamBGCApp.elements.sessionTimer.textContent = `${h}:${m}:${s}`;
+                        }, 1000);
+                    } catch (error) {
+                        console.error('Timer error:', error);
+                        SiamBGCApp.elements.sessionTimer.textContent = 'Error';
+                    }
+                },
+
+                switchTab(tabName) {
+                    SiamBGCApp.state.currentTab = tabName;
+                    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById(`tab-${tabName}`).classList.add('active');
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                    document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
+                },
+
+                showScreen(screenId) {
+                    ['registrationScreen', 'memberDashboard'].forEach(id => this.elements[id].classList.add('hidden'));
+                    if (this.elements[screenId]) {
+                        this.elements[screenId].classList.remove('hidden');
+                    }
+                },
+
+                showRegistrationScreen() { this.showScreen('registrationScreen'); },
+                showProfileEdit(show) {
+                    this.elements.profileDisplay.classList.toggle('hidden', show);
+                    this.elements.profileEdit.classList.toggle('hidden', !show);
+                    if (show) this.populateProfileEditForm();
+                },
+
+                populateProfileEditForm() {
+                    const { memberData } = SiamBGCApp.state;
+                    if (memberData) {
+                        this.elements.editFirstname.value = memberData.firstname || '';
+                        this.elements.editLastname.value = memberData.lastname || '';
+                        this.elements.editNickname.value = memberData.nickname || '';
+                        this.elements.editBirthdate.value = memberData.birthdate || '';
+                        this.elements.editGender.value = memberData.gender || '';
+                        this.elements.editPhone.value = memberData.tel || '';
+                    }
+                },
+
+                updateMembershipStatus(text, bgClass) {
+                    this.elements.membershipStatus.textContent = text;
+                    this.elements.membershipStatus.className = `px-3 py-1 rounded-full text-sm font-medium text-white ${bgClass}`;
+                },
+
+                showRefreshSpinner(show) {
+                    this.elements.refreshIcon.classList.toggle('hidden', show);
+                    this.elements.refreshSpinner.classList.toggle('hidden', !show);
+                },
+
+                showToast(message, type = 'success') {
+                    const toast = (type === 'error') ? this.elements.errorToast : this.elements.successToast;
+                    toast.querySelector('span:last-child').textContent = message;
+                    toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), 4000);
+                },
+
+                showErrorScreen(message) {
+                    this.elements.errorMessage.textContent = message;
+                    this.elements.errorScreen.classList.remove('hidden');
+                    this.elements.loadingScreen.classList.add('hidden');
+                }
+            },
+
+            // --- 5. EVENT HANDLING LOGIC ---
+            events: {
+                setup() {
+                    const app = SiamBGCApp;
+                    app.elements.refreshBtn.addEventListener('click', () => app.loadInitialData());
+                    app.elements.registrationForm.addEventListener('submit', this.handleRegistration);
+                    app.elements.profileForm.addEventListener('submit', this.handleProfileUpdate);
+                    app.elements.tabQr.addEventListener('click', () => app.ui.switchTab('qr'));
+                    app.elements.tabStatus.addEventListener('click', () => app.ui.switchTab('status'));
+                    app.elements.tabProfile.addEventListener('click', () => app.ui.switchTab('profile'));
+                    app.elements.editProfileBtn.addEventListener('click', () => app.ui.showProfileEdit(true));
+                    app.elements.cancelEditBtn.addEventListener('click', () => app.ui.showProfileEdit(false));
+                    app.elements.showQrBtn.addEventListener('click', () => app.ui.switchTab('qr'));
+                },
+
+                async handleRegistration(e) {
+                    e.preventDefault();
+                    const { elements, state, api, ui, loadInitialData } = SiamBGCApp;
+                    const nickname = elements.regNickname.value.trim();
+                    const phone = elements.regPhone.value.trim();
+                    
+                    if (!nickname || !phone || !/^[0-9]{9,10}$/.test(phone.replace(/[-\s]/g, ''))) {
+                        ui.showToast('กรุณากรอกข้อมูลให้ถูกต้อง', 'error');
+                        return;
+                    }
+                    
+                    elements.regSubmitBtn.disabled = true;
+                    elements.regSubmitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
+                    
+                    try {
+                        const payload = { action: 'registerMember', userId: state.userProfile.userId, displayName: state.userProfile.displayName, pictureUrl: state.userProfile.pictureUrl, nickname, tel: phone };
+                        await api.post(payload);
+                        ui.showToast('ลงทะเบียนสำเร็จ!');
+                        await loadInitialData();
+                    } catch (error) {
+                        ui.showToast(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
+                    } finally {
+                        elements.regSubmitBtn.disabled = false;
+                        elements.regSubmitBtn.innerHTML = '🚀 ลงทะเบียนเลย!';
+                    }
+                },
+
+                async handleProfileUpdate(e) {
+                    e.preventDefault();
+                    const { elements, state, api, ui } = SiamBGCApp;
+                    const formData = {
+                        firstname: elements.editFirstname.value.trim(),
+                        lastname: elements.editLastname.value.trim(),
+                        nickname: elements.editNickname.value.trim(),
+                        birthdate: elements.editBirthdate.value,
+                        gender: elements.editGender.value,
+                        tel: elements.editPhone.value.trim()
+                    };
+
+                    if (!formData.nickname || !formData.tel) {
+                        ui.showToast('กรุณากรอกชื่อเล่นและเบอร์โทร', 'error');
+                        return;
+                    }
+
+                    elements.saveProfileBtn.disabled = true;
+                    elements.saveProfileBtn.innerHTML = '🔄 กำลังบันทึก...';
+                    
+                    try {
+                        const payload = { action: 'updateMemberInfo', userId: state.userProfile.userId, ...formData };
+                        const result = await api.post(payload);
+                        
+                        state.memberData = result.data.updatedMember; // Use authoritative data from server
+                        ui.renderProfileInfo();
+                        ui.renderQRCode();
+                        ui.showProfileEdit(false);
+                        ui.showToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
+                    } catch (error) {
+                        ui.showToast(`เกิดข้อผิดพลาด: ${error.message}`, 'error');
+                    } finally {
+                        elements.saveProfileBtn.disabled = false;
+                        elements.saveProfileBtn.innerHTML = '💾 บันทึกข้อมูล';
+                    }
+                }
+            },
+
+            // --- 6. HELPER UTILITIES ---
+            helpers: {
+                formatDate(dateString) {
+                    if (!dateString) return '-';
+                    try {
+                        const date = new Date(dateString);
+                        if (isNaN(date.getTime())) return '-';
+                        return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+                    } catch { return '-'; }
+                },
+                formatGender(gender) {
+                    return ({ 'Male': 'ชาย', 'Female': 'หญิง', 'Other': 'อื่นๆ' })[gender] || '-';
+                }
+            },
+
+            // --- 7. CACHE DOM ELEMENTS ---
+            cacheDOMElements() {
+                this.elements = {
+                    loadingScreen: document.getElementById('loading-screen'),
+                    errorScreen: document.getElementById('error-screen'),
+                    mainApp: document.getElementById('main-app'),
+                    registrationScreen: document.getElementById('registration-screen'),
+                    memberDashboard: document.getElementById('member-dashboard'),
+                    userAvatar: document.getElementById('user-avatar'),
+                    userName: document.getElementById('user-name'),
+                    membershipStatus: document.getElementById('membership-status'),
+                    refreshBtn: document.getElementById('refresh-btn'),
+                    refreshIcon: document.getElementById('refresh-icon'),
+                    refreshSpinner: document.getElementById('refresh-spinner'),
+                    errorToast: document.getElementById('error-toast'),
+                    successToast: document.getElementById('success-toast'),
+                    errorMessage: document.getElementById('error-message'),
+                    registrationForm: document.getElementById('registration-form'),
+                    regNickname: document.getElementById('reg-nickname'),
+                    regPhone: document.getElementById('reg-phone'),
+                    regSubmitBtn: document.getElementById('reg-submit-btn'),
+                    qrCodeContainer: document.getElementById('qr-code'),
+                    qrMemberName: document.getElementById('qr-member-name'),
+                    qrMemberId: document.getElementById('qr-member-id'),
+                    activeSessionDisplay: document.getElementById('active-session-display'),
+                    noSessionDisplay: document.getElementById('no-session-display'),
+                    sessionTimer: document.getElementById('session-timer'),
+                    sessionBranch: document.getElementById('session-branch'),
+                    sessionTable: document.getElementById('session-table'),
+                    sessionPlayersContainer: document.getElementById('session-players-container'),
+                    sessionPlayersList: document.getElementById('session-players-list'),
+                    recommendationsSection: document.getElementById('recommendations-section'),
+                    recommendationsList: document.getElementById('recommendations-list'),
+                    profileDisplay: document.getElementById('profile-display'),
+                    profileEdit: document.getElementById('profile-edit'),
+                    profileInfoContainer: document.getElementById('profile-info'),
+                    profileForm: document.getElementById('profile-form'),
+                    editFirstname: document.getElementById('edit-firstname'),
+                    editLastname: document.getElementById('edit-lastname'),
+                    editNickname: document.getElementById('edit-nickname'),
+                    editBirthdate: document.getElementById('edit-birthdate'),
+                    editGender: document.getElementById('edit-gender'),
+                    editPhone: document.getElementById('edit-phone'),
+                    saveProfileBtn: document.getElementById('save-profile-btn'),
+                    tabQr: document.getElementById('tab-qr'),
+                    tabStatus: document.getElementById('tab-status'),
+                    tabProfile: document.getElementById('tab-profile'),
+                    editProfileBtn: document.getElementById('edit-profile-btn'),
+                    cancelEditBtn: document.getElementById('cancel-edit-btn'),
+                    showQrBtn: document.getElementById('show-qr-btn')
+                };
             }
-        }, 30000);
+        };
+
+        // Start the application once the DOM is ready
+        document.addEventListener('DOMContentLoaded', () => SiamBGCApp.init());
     </script>
 </body>
 </html>
