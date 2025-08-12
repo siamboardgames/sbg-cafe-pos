@@ -10,51 +10,17 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
-        
         .fade-in { animation: fadeIn 0.3s ease-in-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
         .tab-button { transition: all 0.2s ease-in-out; }
         .tab-button.active { background-color: #3b82f6; color: white; transform: translateY(-1px); }
-        
         .qr-container { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
         .qr-code img { border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
-        
-        .status-badge {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .session-timer {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .glass-effect {
-            background: rgba(255, 255, 255, 0.25);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-        }
-
-        .error-toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 1000;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        }
-
-        .error-toast.show {
-            transform: translateX(0);
-        }
+        .status-badge { background: linear-gradient(135deg, #10b981 0%, #059669 100%); animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .session-timer { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .error-toast { position: fixed; top: 20px; right: 20px; z-index: 1000; transform: translateX(120%); transition: transform 0.3s ease; }
+        .error-toast.show { transform: translateX(0); }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -64,9 +30,7 @@
         <div class="text-center">
             <div class="relative">
                 <div class="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto mb-4"></div>
-                <div class="absolute inset-0 flex items-center justify-center">
-                    <span class="text-2xl">🎲</span>
-                </div>
+                <div class="absolute inset-0 flex items-center justify-center"><span class="text-2xl">🎲</span></div>
             </div>
             <p class="text-gray-600 font-medium">กำลังโหลดข้อมูลสมาชิก...</p>
         </div>
@@ -74,18 +38,12 @@
 
     <!-- Error Toast -->
     <div id="error-toast" class="error-toast bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
-        <div class="flex items-center">
-            <span class="mr-2">❌</span>
-            <span id="error-toast-message">เกิดข้อผิดพลาด</span>
-        </div>
+        <div class="flex items-center"><span class="mr-2">❌</span><span id="error-toast-message">เกิดข้อผิดพลาด</span></div>
     </div>
 
     <!-- Success Toast -->
     <div id="success-toast" class="error-toast bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
-        <div class="flex items-center">
-            <span class="mr-2">✅</span>
-            <span id="success-toast-message">สำเร็จ</span>
-        </div>
+        <div class="flex items-center"><span class="mr-2">✅</span><span id="success-toast-message">สำเร็จ</span></div>
     </div>
 
     <!-- Error Screen -->
@@ -94,9 +52,7 @@
             <div class="text-6xl mb-4">😵</div>
             <h2 class="text-xl font-bold text-red-600 mb-2">เกิดข้อผิดพลาด</h2>
             <p id="error-message" class="text-gray-700 mb-4">ไม่สามารถเชื่อมต่อกับระบบได้</p>
-            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg">
-                ลองอีกครั้ง
-            </button>
+            <button onclick="location.reload()" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg">ลองอีกครั้ง</button>
         </div>
     </div>
 
@@ -107,26 +63,18 @@
         <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-b-3xl shadow-lg">
             <div class="flex items-center space-x-4">
                 <div class="relative">
-                    <img id="user-avatar" src="https://via.placeholder.com/64" 
-                         alt="Profile" class="w-16 h-16 rounded-full border-4 border-white shadow-lg">
+                    <img id="user-avatar" src="https://placehold.co/64x64/E2E8F0/4A5568?text=L" alt="Profile" class="w-16 h-16 rounded-full border-4 border-white shadow-lg">
                     <div id="online-indicator" class="absolute -bottom-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white"></div>
                 </div>
                 <div class="flex-1">
                     <h1 id="user-name" class="text-xl font-bold">กำลังโหลด...</h1>
                     <div class="flex items-center space-x-2 mt-1">
-                        <span id="membership-status" class="px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20">
-                            กำลังตรวจสอบ...
-                        </span>
+                        <span id="membership-status" class="px-3 py-1 rounded-full text-sm font-medium bg-white bg-opacity-20">กำลังตรวจสอบ...</span>
                     </div>
                 </div>
                 <button id="refresh-btn" class="p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition-all">
-                    <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5" />
-                    </svg>
-                    <svg id="refresh-spinner" class="w-6 h-6 animate-spin hidden" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <svg id="refresh-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4h-5v5M4 20h5v-5" /></svg>
+                    <svg id="refresh-spinner" class="w-6 h-6 animate-spin hidden" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                 </button>
             </div>
         </div>
@@ -146,15 +94,11 @@
                     <form id="registration-form" class="space-y-4">
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อเล่น *</label>
-                            <input type="text" id="reg-nickname" required
-                                   class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
-                                   placeholder="ใส่ชื่อเล่นของคุณ">
+                            <input type="text" id="reg-nickname" required class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="ใส่ชื่อเล่นของคุณ">
                         </div>
                         <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">เบอร์โทรศัพท์ *</label>
-                            <input type="tel" id="reg-phone" required
-                                   class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors"
-                                   placeholder="08X-XXX-XXXX">
+                            <input type="tel" id="reg-phone" required class="w-full p-4 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors" placeholder="08X-XXX-XXXX">
                         </div>
                         <div class="bg-blue-50 p-4 rounded-xl">
                             <h4 class="font-semibold text-blue-800 mb-2">🎁 สิทธิพิเศษสมาชิก</h4>
@@ -165,10 +109,7 @@
                                 <li>• แจ้งเตือนโปรโมชั่นใหม่</li>
                             </ul>
                         </div>
-                        <button type="submit" id="reg-submit-btn" 
-                                class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                            🚀 ลงทะเบียนเลย!
-                        </button>
+                        <button type="submit" id="reg-submit-btn" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">🚀 ลงทะเบียนเลย!</button>
                     </form>
                 </div>
             </div>
@@ -179,15 +120,9 @@
                 <!-- Tab Navigation -->
                 <div class="bg-white rounded-2xl shadow-lg mb-6 overflow-hidden">
                     <div class="flex">
-                        <button id="tab-qr" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
-                            📱 QR Code
-                        </button>
-                        <button id="tab-status" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
-                            🎮 สถานะ
-                        </button>
-                        <button id="tab-profile" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">
-                            👤 โปรไฟล์
-                        </button>
+                        <button id="tab-qr" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">📱 QR Code</button>
+                        <button id="tab-status" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">🎮 สถานะ</button>
+                        <button id="tab-profile" class="tab-button flex-1 py-4 px-6 font-semibold text-gray-600 bg-gray-50">👤 โปรไฟล์</button>
                     </div>
                 </div>
 
@@ -195,23 +130,15 @@
                 <div id="qr-tab-content" class="tab-content hidden">
                     <div class="qr-container rounded-2xl p-8 text-center text-white mb-6">
                         <h3 class="text-xl font-bold mb-4">แสดง QR Code นี้ให้พนักงาน</h3>
-                        <div id="qr-code-display" class="bg-white p-6 rounded-2xl inline-block shadow-xl">
-                            <div id="qr-code"></div>
-                        </div>
+                        <div id="qr-code-display" class="bg-white p-6 rounded-2xl inline-block shadow-xl"><div id="qr-code"></div></div>
                         <p class="mt-4 text-blue-100">สแกนเพื่อเริ่มเซสชั่นการเล่น</p>
                     </div>
                     
                     <div class="bg-white rounded-2xl shadow-lg p-6">
                         <h4 class="font-bold text-gray-800 mb-3">ข้อมูลสำหรับพนักงาน</h4>
                         <div class="space-y-3">
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                                <span class="text-gray-600">ชื่อสมาชิก</span>
-                                <span id="qr-member-name" class="font-semibold">-</span>
-                            </div>
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl">
-                                <span class="text-gray-600">รหัสสมาชิก</span>
-                                <span id="qr-member-id" class="font-bold text-blue-600 text-lg">-</span>
-                            </div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อสมาชิก</span><span id="qr-member-name" class="font-semibold">-</span></div>
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded-xl"><span class="text-gray-600">รหัสสมาชิก</span><span id="qr-member-id" class="font-bold text-blue-600 text-lg">-</span></div>
                         </div>
                     </div>
                 </div>
@@ -222,42 +149,22 @@
                     <!-- Active Session -->
                     <div id="active-session-display" class="hidden">
                         <div class="bg-white rounded-2xl shadow-lg p-6 mb-6">
-                            <div class="text-center mb-6">
-                                <div class="status-badge inline-flex items-center px-4 py-2 rounded-full text-white font-semibold">
-                                    🎮 กำลังเล่นอยู่
-                                </div>
-                            </div>
-                            
+                            <div class="text-center mb-6"><div class="status-badge inline-flex items-center px-4 py-2 rounded-full text-white font-semibold">🎮 กำลังเล่นอยู่</div></div>
                             <div class="text-center mb-8">
                                 <p class="text-gray-600 mb-2">เวลาที่เล่นไป</p>
                                 <div id="session-timer" class="session-timer text-6xl font-bold mb-2">00:00:00</div>
                                 <p class="text-gray-500">และยังคงนับต่อไป...</p>
                             </div>
-                            
                             <div class="grid grid-cols-2 gap-4 mb-6">
-                                <div class="text-center p-4 bg-blue-50 rounded-xl">
-                                    <p class="text-sm text-blue-600 font-medium">สาขา</p>
-                                    <p id="session-branch" class="text-lg font-bold text-blue-800">-</p>
-                                </div>
-                                <div class="text-center p-4 bg-purple-50 rounded-xl">
-                                    <p class="text-sm text-purple-600 font-medium">โต๊ะ</p>
-                                    <p id="session-table" class="text-lg font-bold text-purple-800">-</p>
-                                </div>
+                                <div class="text-center p-4 bg-blue-50 rounded-xl"><p class="text-sm text-blue-600 font-medium">สาขา</p><p id="session-branch" class="text-lg font-bold text-blue-800">-</p></div>
+                                <div class="text-center p-4 bg-purple-50 rounded-xl"><p class="text-sm text-purple-600 font-medium">โต๊ะ</p><p id="session-table" class="text-lg font-bold text-purple-800">-</p></div>
                             </div>
-                            
-                            <div id="session-players" class="hidden">
+                            <div id="session-players-container" class="hidden">
                                 <h4 class="font-semibold text-gray-800 mb-3">เพื่อนร่วมเล่น</h4>
-                                <div id="players-list" class="space-y-2 mb-4"></div>
+                                <div id="session-players-list" class="space-y-2 mb-4"></div>
                             </div>
-                            
                             <div class="bg-gradient-to-r from-orange-100 to-red-100 p-4 rounded-xl border border-orange-200">
-                                <div class="flex items-center">
-                                    <span class="text-2xl mr-3">💡</span>
-                                    <div>
-                                        <p class="font-semibold text-orange-800">เมื่อเล่นเสร็จแล้ว</p>
-                                        <p class="text-sm text-orange-700">แจ้งพนักงานเพื่อทำการชำระเงิน</p>
-                                    </div>
-                                </div>
+                                <div class="flex items-center"><span class="text-2xl mr-3">💡</span><div><p class="font-semibold text-orange-800">เมื่อเล่นเสร็จแล้ว</p><p class="text-sm text-orange-700">แจ้งพนักงานเพื่อทำการชำระเงิน</p></div></div>
                             </div>
                         </div>
                     </div>
@@ -268,18 +175,10 @@
                             <div class="text-6xl mb-4">🎯</div>
                             <h3 class="text-xl font-bold text-gray-800 mb-2">พร้อมเริ่มเล่นแล้ว!</h3>
                             <p class="text-gray-600 mb-6">แสดง QR Code ให้พนักงานเพื่อเริ่มเซสชั่นใหม่</p>
-                            
-                            <button id="show-qr-btn" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-8 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                                📱 ไปที่ QR Code
-                            </button>
-                            
-                            <div class="mt-6 p-4 bg-blue-50 rounded-xl">
+                            <button id="show-qr-btn" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold py-3 px-8 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">📱 ไปที่ QR Code</button>
+                            <div id="recommendations-section" class="mt-6 p-4 bg-blue-50 rounded-xl hidden">
                                 <h4 class="font-semibold text-blue-800 mb-2">🎮 เกมแนะนำวันนี้</h4>
-                                <div class="text-sm text-blue-700 space-y-1">
-                                    <p>• Splendor - เกมกลยุทธ์สะสมอัญมณี</p>
-                                    <p>• Azul - เกมวางกระเบื้องสุดฮิต</p>
-                                    <p>• Ticket to Ride - เกมผจญภัยรถไฟ</p>
-                                </div>
+                                <div id="recommendations-list" class="text-sm text-blue-700 space-y-1"></div>
                             </div>
                         </div>
                     </div>
@@ -293,65 +192,27 @@
                         <div id="profile-display">
                             <div class="flex items-center justify-between mb-6">
                                 <h3 class="text-xl font-bold text-gray-800">ข้อมูลส่วนตัว</h3>
-                                <button id="edit-profile-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-                                    ✏️ แก้ไข
-                                </button>
+                                <button id="edit-profile-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors">✏️ แก้ไข</button>
                             </div>
-                            <div id="profile-info" class="space-y-4">
-                                <!-- Profile information will be loaded here -->
-                            </div>
+                            <div id="profile-info" class="space-y-4"></div>
                         </div>
 
                         <!-- Profile Edit Form -->
                         <div id="profile-edit" class="hidden">
                             <div class="flex items-center justify-between mb-6">
                                 <h3 class="text-xl font-bold text-gray-800">แก้ไขข้อมูล</h3>
-                                <button id="cancel-edit-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-                                    ❌ ยกเลิก
-                                </button>
+                                <button id="cancel-edit-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors">❌ ยกเลิก</button>
                             </div>
                             <form id="profile-form" class="space-y-4">
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อจริง</label>
-                                        <input type="text" id="edit-firstname" 
-                                               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-2">นามสกุล</label>
-                                        <input type="text" id="edit-lastname"
-                                               class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                    </div>
+                                    <div><label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อจริง</label><input type="text" id="edit-firstname" class="w-full p-3 border-2 border-gray-200 rounded-xl"></div>
+                                    <div><label class="block text-sm font-semibold text-gray-700 mb-2">นามสกุล</label><input type="text" id="edit-lastname" class="w-full p-3 border-2 border-gray-200 rounded-xl"></div>
                                 </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อเล่น</label>
-                                    <input type="text" id="edit-nickname" required
-                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">วันเกิด</label>
-                                    <input type="date" id="edit-birthdate"
-                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">เพศ</label>
-                                    <select id="edit-gender"
-                                            class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                        <option value="">ไม่ระบุ</option>
-                                        <option value="Male">ชาย</option>
-                                        <option value="Female">หญิง</option>
-                                        <option value="Other">อื่นๆ</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-2">เบอร์โทรศัพท์</label>
-                                    <input type="tel" id="edit-phone" required
-                                           class="w-full p-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:outline-none transition-colors">
-                                </div>
-                                <button type="submit" id="save-profile-btn"
-                                        class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                                    💾 บันทึกข้อมูล
-                                </button>
+                                <div><label class="block text-sm font-semibold text-gray-700 mb-2">ชื่อเล่น</label><input type="text" id="edit-nickname" required class="w-full p-3 border-2 border-gray-200 rounded-xl"></div>
+                                <div><label class="block text-sm font-semibold text-gray-700 mb-2">วันเกิด</label><input type="date" id="edit-birthdate" class="w-full p-3 border-2 border-gray-200 rounded-xl"></div>
+                                <div><label class="block text-sm font-semibold text-gray-700 mb-2">เพศ</label><select id="edit-gender" class="w-full p-3 border-2 border-gray-200 rounded-xl"><option value="">ไม่ระบุ</option><option value="Male">ชาย</option><option value="Female">หญิง</option><option value="Other">อื่นๆ</option></select></div>
+                                <div><label class="block text-sm font-semibold text-gray-700 mb-2">เบอร์โทรศัพท์</label><input type="tel" id="edit-phone" required class="w-full p-3 border-2 border-gray-200 rounded-xl"></div>
+                                <button type="submit" id="save-profile-btn" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white font-bold py-4 rounded-xl">💾 บันทึกข้อมูล</button>
                             </form>
                         </div>
                     </div>
@@ -363,7 +224,7 @@
     <script>
         // Configuration
         const LIFF_ID = '2007836924-1X8GmJKj';
-        const API_URL = 'https://script.google.com/macros/s/AKfycbzr3pUr8iG45vIzazBUAuuhnijuwoG-NCJTmh9a7cfQ_EBhgLdf6EFsi8VgMvvP6qUTyQ/exec';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzGQTEw-9tsE1Pr-F4K5lsHB79qOpN9nL7218jdlEBTPZUr5P-zV2SORAo0064d1sp1Iw/exec';
         
         // Application State
         let userProfile = null;
@@ -411,7 +272,7 @@
         }
 
         function updateUserInterface() {
-            elements.userAvatar.src = userProfile.pictureUrl || 'https://via.placeholder.com/64';
+            elements.userAvatar.src = userProfile.pictureUrl || 'https://placehold.co/64x64/E2E8F0/4A5568?text=L';
             elements.userName.textContent = userProfile.displayName;
             elements.loadingScreen.classList.add('hidden');
             elements.mainApp.classList.remove('hidden');
@@ -424,7 +285,6 @@
                 
                 if (result.success) {
                     const data = result.data;
-                    
                     if (data.isMember) {
                         memberData = data.memberInfo;
                         showMemberDashboard(data.activeSession);
@@ -436,7 +296,6 @@
                 } else {
                     throw new Error(result.message);
                 }
-                
             } catch (error) {
                 console.error('Load user data error:', error);
                 showErrorToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
@@ -451,28 +310,21 @@
         }
 
         function showRefreshSpinner(show) {
-            if (show) {
-                elements.refreshIcon.classList.add('hidden');
-                elements.refreshSpinner.classList.remove('hidden');
-            } else {
-                elements.refreshIcon.classList.remove('hidden');
-                elements.refreshSpinner.classList.add('hidden');
-            }
+            elements.refreshIcon.classList.toggle('hidden', show);
+            elements.refreshSpinner.classList.toggle('hidden', !show);
         }
 
         // Toast notification functions
         function showErrorToast(message) {
             const toast = elements.errorToast;
-            const messageEl = document.getElementById('error-toast-message');
-            messageEl.textContent = message;
+            document.getElementById('error-toast-message').textContent = message;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 4000);
         }
 
         function showSuccessToast(message) {
             const toast = elements.successToast;
-            const messageEl = document.getElementById('success-toast-message');
-            messageEl.textContent = message;
+            document.getElementById('success-toast-message').textContent = message;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
         }
@@ -499,82 +351,60 @@
                 displayActiveSession(activeSession);
             } else {
                 displayNoActiveSession();
+                loadRecommendations(); 
             }
             
             switchTab(currentTab);
         }
 
+        async function loadRecommendations() {
+            try {
+                const result = await apiGet('getRecommendations');
+                const recommendSection = document.getElementById('recommendations-section');
+                const recommendList = document.getElementById('recommendations-list');
+                
+                if (result.success && result.data.length > 0) {
+                    recommendList.innerHTML = result.data.map(game => 
+                        `<p>• <strong>${game.name}</strong> - ${game.description}</p>`
+                    ).join('');
+                    recommendSection.classList.remove('hidden');
+                } else {
+                    recommendSection.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('Could not load recommendations:', error);
+                document.getElementById('recommendations-section').classList.add('hidden');
+            }
+        }
+
         function generateQRCode() {
             const qrContainer = document.getElementById('qr-code');
             qrContainer.innerHTML = '';
-            
             try {
-                // Enhanced QR Code generation with error handling
-                if (typeof QRCode === 'undefined') {
-                    throw new Error('QR Code library not loaded');
-                }
-
-                QRCode.toCanvas(qrContainer, userProfile.userId, {
-                    width: 200,
-                    height: 200,
-                    color: {
-                        dark: '#000000',
-                        light: '#FFFFFF'
-                    },
-                    errorCorrectionLevel: 'H'
-                }, function (error) {
-                    if (error) {
-                        console.error('QR Code generation error:', error);
-                        qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code ได้<br><small>กรุณาลองรีเฟรชหน้าเว็บ</small></p>';
-                        showErrorToast('ไม่สามารถสร้าง QR Code ได้');
-                    }
+                QRCode.toCanvas(qrContainer, userProfile.userId, { width: 200, height: 200, errorCorrectionLevel: 'H' }, (error) => {
+                    if (error) throw error;
                 });
-                
-                // Update member info for QR display
                 document.getElementById('qr-member-name').textContent = memberData?.nickname || 'ไม่ระบุ';
                 document.getElementById('qr-member-id').textContent = memberData?.customerId || 'ไม่ระบุ';
-                
             } catch (error) {
                 console.error('QR Code generation error:', error);
-                qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code ได้<br><small>กรุณาลองรีเฟรชหน้าเว็บ</small></p>';
+                qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code</p>';
                 showErrorToast('ไม่สามารถสร้าง QR Code ได้');
             }
         }
 
         function populateMemberInfo() {
             const profileInfo = document.getElementById('profile-info');
-            
             if (memberData) {
                 profileInfo.innerHTML = `
                     <div class="space-y-4">
-                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl">
-                            <span class="text-gray-600">รหัสสมาชิก</span>
-                            <span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">ชื่อเล่น</span>
-                            <span class="font-semibold">${memberData.nickname || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">ชื่อจริง</span>
-                            <span class="font-semibold">${memberData.firstname || '-'} ${memberData.lastname || ''}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">วันเกิด</span>
-                            <span class="font-semibold">${formatDate(memberData.birthdate)}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">เพศ</span>
-                            <span class="font-semibold">${formatGender(memberData.gender)}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">เบอร์โทรศัพท์</span>
-                            <span class="font-semibold">${memberData.tel || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                            <span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span>
-                            <span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span>
-                        </div>
+                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl"><span class="text-gray-600">รหัสสมาชิก</span><span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อเล่น</span><span class="font-semibold">${memberData.nickname || '-'}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">ชื่อจริง</span><span class="font-semibold">${memberData.firstname || '-'} ${memberData.lastname || ''}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">วันเกิด</span><span class="font-semibold">${formatDate(memberData.birthdate)}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เพศ</span><span class="font-semibold">${formatGender(memberData.gender)}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl"><span class="text-gray-600">เบอร์โทรศัพท์</span><span class="font-semibold">${memberData.tel || '-'}</span></div>
+                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl"><span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span><span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span></div>
                     </div>
                 `;
             }
@@ -584,50 +414,28 @@
             document.getElementById('active-session-display').classList.remove('hidden');
             document.getElementById('no-session-display').classList.add('hidden');
             
-            // Update session info
             document.getElementById('session-branch').textContent = session.branch;
             document.getElementById('session-table').textContent = session.table;
             
-            // Display players if more than 1
+            const playersContainer = document.getElementById('session-players-container');
             if (session.players && session.players.length > 1) {
-                const playersSection = document.getElementById('session-players');
-                const playersList = document.getElementById('players-list');
-                
-                let playersHtml = '';
-                session.players.forEach(player => {
+                const playersList = document.getElementById('session-players-list');
+                playersList.innerHTML = session.players.map(player => {
                     const isCurrentUser = player.userId === userProfile.userId;
-                    playersHtml += `
-                        <div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'} rounded-xl">
-                            <span class="font-medium ${isCurrentUser ? 'text-blue-800' : 'text-gray-700'}">
-                                ${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}
-                            </span>
-                            <span class="text-sm text-gray-600">${player.ticketType || 'ไม่ระบุ'}</span>
-                        </div>
-                    `;
-                });
-                
-                playersList.innerHTML = playersHtml;
-                playersSection.classList.remove('hidden');
+                    return `<div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50' : 'bg-gray-50'} rounded-xl"><span class="font-medium ${isCurrentUser ? 'text-blue-800' : ''}">${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}</span><span class="text-sm text-gray-600">${player.ticketType || ''}</span></div>`;
+                }).join('');
+                playersContainer.classList.remove('hidden');
+            } else {
+                playersContainer.classList.add('hidden');
             }
             
-            // Start timer with error handling
-            try {
-                startSessionTimer(session.checkInTime);
-            } catch (error) {
-                console.error('Timer error:', error);
-                document.getElementById('session-timer').textContent = 'ไม่สามารถคำนวณเวลาได้';
-            }
+            startSessionTimer(session.checkInTime);
         }
 
         function displayNoActiveSession() {
             document.getElementById('active-session-display').classList.add('hidden');
             document.getElementById('no-session-display').classList.remove('hidden');
-            
-            // Stop timer if running
-            if (sessionTimer) {
-                clearInterval(sessionTimer);
-                sessionTimer = null;
-            }
+            if (sessionTimer) clearInterval(sessionTimer);
         }
 
         function startSessionTimer(checkInTime) {
@@ -636,83 +444,40 @@
             try {
                 const startTime = new Date(checkInTime).getTime();
                 const timerDisplay = document.getElementById('session-timer');
-                
-                // Validate start time
-                if (isNaN(startTime)) {
-                    throw new Error('Invalid check-in time');
-                }
+                if (isNaN(startTime)) throw new Error('Invalid check-in time');
                 
                 sessionTimer = setInterval(() => {
-                    const now = new Date().getTime();
-                    const elapsed = now - startTime;
-                    
-                    // Handle negative times (clock drift, etc.)
-                    if (elapsed < 0) {
-                        timerDisplay.textContent = '00:00:00';
-                        timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
-                        return;
-                    }
-                    
-                    const hours = Math.floor(elapsed / (1000 * 60 * 60));
-                    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-                    const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
-                    
-                    timerDisplay.textContent = 
-                        String(hours).padStart(2, '0') + ':' +
-                        String(minutes).padStart(2, '0') + ':' +
-                        String(seconds).padStart(2, '0');
-                        
-                    // Enhanced color changes based on duration
-                    if (hours >= 4) {
-                        timerDisplay.className = 'text-6xl font-bold mb-2 text-red-600';
-                    } else if (hours >= 3) {
-                        timerDisplay.className = 'text-6xl font-bold mb-2 text-orange-500';
-                    } else if (hours >= 2) {
-                        timerDisplay.className = 'text-6xl font-bold mb-2 text-yellow-500';
-                    } else {
-                        timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
-                    }
+                    const elapsed = new Date().getTime() - startTime;
+                    if (elapsed < 0) { timerDisplay.textContent = '00:00:00'; return; }
+                    const h = String(Math.floor(elapsed / 3600000)).padStart(2, '0');
+                    const m = String(Math.floor((elapsed % 3600000) / 60000)).padStart(2, '0');
+                    const s = String(Math.floor((elapsed % 60000) / 1000)).padStart(2, '0');
+                    timerDisplay.textContent = `${h}:${m}:${s}`;
                 }, 1000);
-                
             } catch (error) {
-                console.error('Start timer error:', error);
-                document.getElementById('session-timer').textContent = 'ไม่สามารถคำนวณเวลาได้';
+                console.error('Timer error:', error);
+                document.getElementById('session-timer').textContent = 'Error';
             }
         }
 
         // Tab Management
         function switchTab(tabName) {
             currentTab = tabName;
-            
-            // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
             document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
         }
 
-        // Registration Functions - Enhanced with proper data fetching
+        // Registration Functions
         async function handleRegistration(e) {
             e.preventDefault();
             const submitBtn = document.getElementById('reg-submit-btn');
             const nickname = document.getElementById('reg-nickname').value.trim();
             const phone = document.getElementById('reg-phone').value.trim();
             
-            if (!nickname || !phone) {
-                showErrorToast('กรุณากรอกข้อมูลให้ครบถ้วน');
-                return;
-            }
-            
-            // Basic phone validation
-            const phoneRegex = /^[0-9]{9,10}$/;
-            if (!phoneRegex.test(phone.replace(/[-\s]/g, ''))) {
-                showErrorToast('รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง');
+            if (!nickname || !phone || !/^[0-9]{9,10}$/.test(phone.replace(/[-\s]/g, ''))) {
+                showErrorToast('กรุณากรอกข้อมูลให้ถูกต้อง');
                 return;
             }
             
@@ -720,27 +485,14 @@
             submitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
             
             try {
-                const payload = {
-                    action: 'registerMember',
-                    userId: userProfile.userId,
-                    displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl,
-                    nickname: nickname,
-                    tel: phone
-                };
-                
+                const payload = { action: 'registerMember', userId: userProfile.userId, displayName: userProfile.displayName, pictureUrl: userProfile.pictureUrl, nickname: nickname, tel: phone };
                 const result = await apiPost(payload);
-                
                 if (result.success) {
                     showSuccessToast('ลงทะเบียนสำเร็จ!');
-                    
-                    // Fetch complete member data from server instead of using partial local data
                     await loadUserData();
-                    
                 } else {
                     throw new Error(result.message);
                 }
-                
             } catch (error) {
                 showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
             } finally {
@@ -749,12 +501,10 @@
             }
         }
 
-        // Profile Management - Enhanced with better data handling
+        // Profile Management
         function showProfileEdit() {
             document.getElementById('profile-display').classList.add('hidden');
             document.getElementById('profile-edit').classList.remove('hidden');
-            
-            // Populate form with current data
             if (memberData) {
                 document.getElementById('edit-firstname').value = memberData.firstname || '';
                 document.getElementById('edit-lastname').value = memberData.lastname || '';
@@ -783,47 +533,27 @@
                 tel: document.getElementById('edit-phone').value.trim()
             };
 
-            // Validation
-            if (!formData.nickname) {
-                showErrorToast('กรุณากรอกชื่อเล่น');
+            if (!formData.nickname || !formData.tel) {
+                showErrorToast('กรุณากรอกชื่อเล่นและเบอร์โทร');
                 return;
             }
 
-            if (!formData.tel) {
-                showErrorToast('กรุณากรอกเบอร์โทรศัพท์');
-                return;
-            }
-
-            const phoneRegex = /^[0-9]{9,10}$/;
-            if (!phoneRegex.test(formData.tel.replace(/[-\s]/g, ''))) {
-                showErrorToast('รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง');
-                return;
-            }
-            
             submitBtn.disabled = true;
             submitBtn.innerHTML = '🔄 กำลังบันทึก...';
             
             try {
-                const payload = {
-                    action: 'updateMemberInfo',
-                    userId: userProfile.userId,
-                    ...formData
-                };
-                
+                const payload = { action: 'updateMemberInfo', userId: userProfile.userId, ...formData };
                 const result = await apiPost(payload);
                 
-                if (result.success) {
-                    // Update local data and refresh all UI components
-                    memberData = { ...memberData, ...formData };
+                if (result.success && result.data.updatedMember) {
+                    memberData = result.data.updatedMember;
                     populateMemberInfo();
-                    generateQRCode(); // Refresh QR display info
+                    generateQRCode();
                     hideProfileEdit();
-                    
                     showSuccessToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
                 } else {
                     throw new Error(result.message);
                 }
-                
             } catch (error) {
                 showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
             } finally {
@@ -832,33 +562,20 @@
             }
         }
 
-        // API Functions - Enhanced error handling
+        // API Functions
         async function apiGet(action, params = {}) {
             try {
                 const url = new URL(API_URL);
                 url.searchParams.append('action', action);
-                Object.entries(params).forEach(([key, value]) => {
-                    url.searchParams.append(key, value);
-                });
-
+                Object.entries(params).forEach(([key, value]) => url.searchParams.append(key, value));
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-                const response = await fetch(url, {
-                    signal: controller.signal
-                });
-                
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const response = await fetch(url, { signal: controller.signal });
                 clearTimeout(timeoutId);
-                
                 if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                
-                const result = await response.json();
-                return result;
-                
+                return await response.json();
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
-                }
+                if (error.name === 'AbortError') throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
                 throw error;
             }
         }
@@ -866,26 +583,18 @@
         async function apiPost(payload) {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
-
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify(payload),
                     signal: controller.signal
                 });
-                
                 clearTimeout(timeoutId);
-                
                 if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
-                
-                const result = await response.json();
-                return result;
-                
+                return await response.json();
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
-                }
+                if (error.name === 'AbortError') throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
                 throw error;
             }
         }
@@ -896,59 +605,35 @@
             try {
                 const date = new Date(dateString);
                 if (isNaN(date.getTime())) return '-';
-                return date.toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            } catch {
-                return '-';
-            }
+                return date.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+            } catch { return '-'; }
         }
 
         function formatGender(gender) {
-            const genderMap = {
-                'Male': 'ชาย',
-                'Female': 'หญิง',
-                'Other': 'อื่นๆ'
-            };
-            return genderMap[gender] || '-';
+            return ({ 'Male': 'ชาย', 'Female': 'หญิง', 'Other': 'อื่นๆ' })[gender] || '-';
         }
 
         // Event Listeners
         document.getElementById('refresh-btn').addEventListener('click', loadUserData);
         document.getElementById('registration-form').addEventListener('submit', handleRegistration);
         document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
-        
-        // Tab navigation
         document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr'));
         document.getElementById('tab-status').addEventListener('click', () => switchTab('status'));
         document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile'));
-        
-        // Profile edit buttons
         document.getElementById('edit-profile-btn').addEventListener('click', showProfileEdit);
         document.getElementById('cancel-edit-btn').addEventListener('click', hideProfileEdit);
-        
-        // Show QR button
         document.getElementById('show-qr-btn').addEventListener('click', () => switchTab('qr'));
 
-        // Auto-refresh session data every 30 seconds if active session exists
+        // Auto-refresh session data
         setInterval(async () => {
-            if (memberData && document.getElementById('active-session-display').classList.contains('hidden') === false) {
+            if (memberData && !document.getElementById('active-session-display').classList.contains('hidden')) {
                 try {
                     const result = await apiGet('getInitialData', { userId: userProfile.userId });
-                    if (result.success && result.data.activeSession) {
-                        // Only update if session is still active
-                        const session = result.data.activeSession;
-                        document.getElementById('session-branch').textContent = session.branch;
-                        document.getElementById('session-table').textContent = session.table;
-                    } else if (result.success && !result.data.activeSession) {
-                        // Session ended, refresh display
+                    if (result.success && !result.data.activeSession) {
                         displayNoActiveSession();
                         showSuccessToast('เซสชั่นของคุณสิ้นสุดแล้ว');
                     }
                 } catch (error) {
-                    // Ignore auto-refresh errors to avoid annoying users
                     console.error('Auto-refresh error:', error);
                 }
             }
