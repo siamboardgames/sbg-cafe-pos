@@ -6,7 +6,7 @@
     <title>Siam Board Games - Member App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         body { font-family: 'Sarabun', sans-serif; }
@@ -361,6 +361,105 @@
     </div>
 
     <script>
+        // Configuration
+        const LIFF_ID = '2007836924-1X8GmJKj';
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzr3pUr8iG45vIzazBUAuuhnijuwoG-NCJTmh9a7cfQ_EBhgLdf6EFsi8VgMvvP6qUTyQ/exec';
+        
+        // Application State
+        let userProfile = null;
+        let memberData = null;
+        let sessionTimer = null;
+        let currentTab = 'qr';
+
+        // DOM Elements
+        const elements = {
+            loadingScreen: document.getElementById('loading-screen'),
+            errorScreen: document.getElementById('error-screen'),
+            mainApp: document.getElementById('main-app'),
+            registrationScreen: document.getElementById('registration-screen'),
+            memberDashboard: document.getElementById('member-dashboard'),
+            userAvatar: document.getElementById('user-avatar'),
+            userName: document.getElementById('user-name'),
+            membershipStatus: document.getElementById('membership-status'),
+            refreshBtn: document.getElementById('refresh-btn'),
+            refreshIcon: document.getElementById('refresh-icon'),
+            refreshSpinner: document.getElementById('refresh-spinner'),
+            errorToast: document.getElementById('error-toast'),
+            successToast: document.getElementById('success-toast')
+        };
+
+        // Initialize Application
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        async function initializeApp() {
+            try {
+                await liff.init({ liffId: LIFF_ID });
+                
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                userProfile = await liff.getProfile();
+                updateUserInterface();
+                await loadUserData();
+                
+            } catch (error) {
+                console.error('LIFF Initialization Error:', error);
+                showError('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE กรุณาลองใหม่อีกครั้ง');
+            }
+        }
+
+        function updateUserInterface() {
+            elements.userAvatar.src = userProfile.pictureUrl || 'https://via.placeholder.com/64';
+            elements.userName.textContent = userProfile.displayName;
+            elements.loadingScreen.classList.add('hidden');
+            elements.mainApp.classList.remove('hidden');
+        }
+
+        async function loadUserData() {
+            try {
+                showRefreshSpinner(true);
+                const result = await apiGet('getInitialData', { userId: userProfile.userId });
+                
+                if (result.success) {
+                    const data = result.data;
+                    
+                    if (data.isMember) {
+                        memberData = data.memberInfo;
+                        showMemberDashboard(data.activeSession);
+                        updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
+                    } else {
+                        showRegistrationScreen();
+                        updateMembershipStatus('📝 ยังไม่ได้ลงทะเบียน', 'bg-yellow-500');
+                    }
+                } else {
+                    throw new Error(result.message);
+                }
+                
+            } catch (error) {
+                console.error('Load user data error:', error);
+                showErrorToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
+            } finally {
+                showRefreshSpinner(false);
+            }
+        }
+
+        function updateMembershipStatus(text, bgClass) {
+            elements.membershipStatus.textContent = text;
+            elements.membershipStatus.className = `px-3 py-1 rounded-full text-sm font-medium text-white ${bgClass}`;
+        }
+
+        function showRefreshSpinner(show) {
+            if (show) {
+                elements.refreshIcon.classList.add('hidden');
+                elements.refreshSpinner.classList.remove('hidden');
+            } else {
+                elements.refreshIcon.classList.remove('hidden');
+                elements.refreshSpinner.classList.add('hidden');
+            }
+        }
+
         // Toast notification functions
         function showErrorToast(message) {
             const toast = elements.errorToast;
@@ -415,13 +514,20 @@
                     throw new Error('QR Code library not loaded');
                 }
 
-                new QRCode(qrContainer, {
-                    text: userProfile.userId,
+                QRCode.toCanvas(qrContainer, userProfile.userId, {
                     width: 200,
                     height: 200,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
+                    color: {
+                        dark: '#000000',
+                        light: '#FFFFFF'
+                    },
+                    errorCorrectionLevel: 'H'
+                }, function (error) {
+                    if (error) {
+                        console.error('QR Code generation error:', error);
+                        qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code ได้<br><small>กรุณาลองรีเฟรชหน้าเว็บ</small></p>';
+                        showErrorToast('ไม่สามารถสร้าง QR Code ได้');
+                    }
                 });
                 
                 // Update member info for QR display
@@ -849,104 +955,4 @@
         }, 30000);
     </script>
 </body>
-</html> Configuration
-        const LIFF_ID = '2007836924-1X8GmJKj';
-        const API_URL = 'https://script.google.com/macros/s/AKfycbyybClphlyXUBYTt20sRR6gG7Owz-RFjOba3TraQzzSJb4x0v5h23REB2zFqPMJ-cAIjA/exec';
-        
-        // Application State
-        let userProfile = null;
-        let memberData = null;
-        let sessionTimer = null;
-        let currentTab = 'qr';
-
-        // DOM Elements
-        const elements = {
-            loadingScreen: document.getElementById('loading-screen'),
-            errorScreen: document.getElementById('error-screen'),
-            mainApp: document.getElementById('main-app'),
-            registrationScreen: document.getElementById('registration-screen'),
-            memberDashboard: document.getElementById('member-dashboard'),
-            userAvatar: document.getElementById('user-avatar'),
-            userName: document.getElementById('user-name'),
-            membershipStatus: document.getElementById('membership-status'),
-            refreshBtn: document.getElementById('refresh-btn'),
-            refreshIcon: document.getElementById('refresh-icon'),
-            refreshSpinner: document.getElementById('refresh-spinner'),
-            errorToast: document.getElementById('error-toast'),
-            successToast: document.getElementById('success-toast')
-        };
-
-        // Initialize Application
-        document.addEventListener('DOMContentLoaded', initializeApp);
-
-        async function initializeApp() {
-            try {
-                await liff.init({ liffId: LIFF_ID });
-                
-                if (!liff.isLoggedIn()) {
-                    liff.login();
-                    return;
-                }
-
-                userProfile = await liff.getProfile();
-                updateUserInterface();
-                await loadUserData();
-                
-            } catch (error) {
-                console.error('LIFF Initialization Error:', error);
-                showError('เกิดข้อผิดพลาดในการเชื่อมต่อ LINE กรุณาลองใหม่อีกครั้ง');
-            }
-        }
-
-        function updateUserInterface() {
-            elements.userAvatar.src = userProfile.pictureUrl || 'https://via.placeholder.com/64';
-            elements.userName.textContent = userProfile.displayName;
-            elements.loadingScreen.classList.add('hidden');
-            elements.mainApp.classList.remove('hidden');
-        }
-
-        async function loadUserData() {
-            try {
-                showRefreshSpinner(true);
-                const result = await apiGet('getInitialData', { userId: userProfile.userId });
-                
-                if (result.success) {
-                    const data = result.data;
-                    
-                    if (data.isMember) {
-                        memberData = data.memberInfo;
-                        showMemberDashboard(data.activeSession);
-                        updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
-                    } else {
-                        showRegistrationScreen();
-                        updateMembershipStatus('📝 ยังไม่ได้ลงทะเบียน', 'bg-yellow-500');
-                    }
-                } else {
-                    throw new Error(result.message);
-                }
-                
-            } catch (error) {
-                console.error('Load user data error:', error);
-                showErrorToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
-            } finally {
-                showRefreshSpinner(false);
-            }
-        }
-
-        function updateMembershipStatus(text, bgClass) {
-            elements.membershipStatus.textContent = text;
-            elements.membershipStatus.className = `px-3 py-1 rounded-full text-sm font-medium text-white ${bgClass}`;
-        }
-
-        function showRefreshSpinner(show) {
-            if (show) {
-                elements.refreshIcon.classList.add('hidden');
-                elements.refreshSpinner.classList.remove('hidden');
-            } else {
-                elements.refreshIcon.classList.remove('hidden');
-                elements.refreshSpinner.classList.add('hidden');
-            }
-        }
-
-        //
-
+</html>
