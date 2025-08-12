@@ -42,6 +42,19 @@
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.18);
         }
+
+        .error-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .error-toast.show {
+            transform: translateX(0);
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -56,6 +69,22 @@
                 </div>
             </div>
             <p class="text-gray-600 font-medium">กำลังโหลดข้อมูลสมาชิก...</p>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="error-toast bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
+        <div class="flex items-center">
+            <span class="mr-2">❌</span>
+            <span id="error-toast-message">เกิดข้อผิดพลาด</span>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="success-toast" class="error-toast bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-sm">
+        <div class="flex items-center">
+            <span class="mr-2">✅</span>
+            <span id="success-toast-message">สำเร็จ</span>
         </div>
     </div>
 
@@ -332,7 +361,495 @@
     </div>
 
     <script>
-        // Configuration
+        // Toast notification functions
+        function showErrorToast(message) {
+            const toast = elements.errorToast;
+            const messageEl = document.getElementById('error-toast-message');
+            messageEl.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        function showSuccessToast(message) {
+            const toast = elements.successToast;
+            const messageEl = document.getElementById('success-toast-message');
+            messageEl.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            elements.errorScreen.classList.remove('hidden');
+            elements.loadingScreen.classList.add('hidden');
+        }
+
+        function showRegistrationScreen() {
+            elements.registrationScreen.classList.remove('hidden');
+            elements.memberDashboard.classList.add('hidden');
+        }
+
+        function showMemberDashboard(activeSession) {
+            elements.registrationScreen.classList.add('hidden');
+            elements.memberDashboard.classList.remove('hidden');
+            
+            generateQRCode();
+            populateMemberInfo();
+            
+            if (activeSession) {
+                displayActiveSession(activeSession);
+            } else {
+                displayNoActiveSession();
+            }
+            
+            switchTab(currentTab);
+        }
+
+        function generateQRCode() {
+            const qrContainer = document.getElementById('qr-code');
+            qrContainer.innerHTML = '';
+            
+            try {
+                // Enhanced QR Code generation with error handling
+                if (typeof QRCode === 'undefined') {
+                    throw new Error('QR Code library not loaded');
+                }
+
+                new QRCode(qrContainer, {
+                    text: userProfile.userId,
+                    width: 200,
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                
+                // Update member info for QR display
+                document.getElementById('qr-member-name').textContent = memberData?.nickname || 'ไม่ระบุ';
+                document.getElementById('qr-member-id').textContent = memberData?.customerId || 'ไม่ระบุ';
+                
+            } catch (error) {
+                console.error('QR Code generation error:', error);
+                qrContainer.innerHTML = '<p class="text-red-500 text-center">ไม่สามารถสร้าง QR Code ได้<br><small>กรุณาลองรีเฟรชหน้าเว็บ</small></p>';
+                showErrorToast('ไม่สามารถสร้าง QR Code ได้');
+            }
+        }
+
+        function populateMemberInfo() {
+            const profileInfo = document.getElementById('profile-info');
+            
+            if (memberData) {
+                profileInfo.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl">
+                            <span class="text-gray-600">รหัสสมาชิก</span>
+                            <span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">ชื่อเล่น</span>
+                            <span class="font-semibold">${memberData.nickname || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">ชื่อจริง</span>
+                            <span class="font-semibold">${memberData.firstname || '-'} ${memberData.lastname || ''}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">วันเกิด</span>
+                            <span class="font-semibold">${formatDate(memberData.birthdate)}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">เพศ</span>
+                            <span class="font-semibold">${formatGender(memberData.gender)}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
+                            <span class="text-gray-600">เบอร์โทรศัพท์</span>
+                            <span class="font-semibold">${memberData.tel || '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
+                            <span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span>
+                            <span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function displayActiveSession(session) {
+            document.getElementById('active-session-display').classList.remove('hidden');
+            document.getElementById('no-session-display').classList.add('hidden');
+            
+            // Update session info
+            document.getElementById('session-branch').textContent = session.branch;
+            document.getElementById('session-table').textContent = session.table;
+            
+            // Display players if more than 1
+            if (session.players && session.players.length > 1) {
+                const playersSection = document.getElementById('session-players');
+                const playersList = document.getElementById('players-list');
+                
+                let playersHtml = '';
+                session.players.forEach(player => {
+                    const isCurrentUser = player.userId === userProfile.userId;
+                    playersHtml += `
+                        <div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'} rounded-xl">
+                            <span class="font-medium ${isCurrentUser ? 'text-blue-800' : 'text-gray-700'}">
+                                ${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}
+                            </span>
+                            <span class="text-sm text-gray-600">${player.ticketType || 'ไม่ระบุ'}</span>
+                        </div>
+                    `;
+                });
+                
+                playersList.innerHTML = playersHtml;
+                playersSection.classList.remove('hidden');
+            }
+            
+            // Start timer with error handling
+            try {
+                startSessionTimer(session.checkInTime);
+            } catch (error) {
+                console.error('Timer error:', error);
+                document.getElementById('session-timer').textContent = 'ไม่สามารถคำนวณเวลาได้';
+            }
+        }
+
+        function displayNoActiveSession() {
+            document.getElementById('active-session-display').classList.add('hidden');
+            document.getElementById('no-session-display').classList.remove('hidden');
+            
+            // Stop timer if running
+            if (sessionTimer) {
+                clearInterval(sessionTimer);
+                sessionTimer = null;
+            }
+        }
+
+        function startSessionTimer(checkInTime) {
+            if (sessionTimer) clearInterval(sessionTimer);
+            
+            try {
+                const startTime = new Date(checkInTime).getTime();
+                const timerDisplay = document.getElementById('session-timer');
+                
+                // Validate start time
+                if (isNaN(startTime)) {
+                    throw new Error('Invalid check-in time');
+                }
+                
+                sessionTimer = setInterval(() => {
+                    const now = new Date().getTime();
+                    const elapsed = now - startTime;
+                    
+                    // Handle negative times (clock drift, etc.)
+                    if (elapsed < 0) {
+                        timerDisplay.textContent = '00:00:00';
+                        timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
+                        return;
+                    }
+                    
+                    const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+                    
+                    timerDisplay.textContent = 
+                        String(hours).padStart(2, '0') + ':' +
+                        String(minutes).padStart(2, '0') + ':' +
+                        String(seconds).padStart(2, '0');
+                        
+                    // Enhanced color changes based on duration
+                    if (hours >= 4) {
+                        timerDisplay.className = 'text-6xl font-bold mb-2 text-red-600';
+                    } else if (hours >= 3) {
+                        timerDisplay.className = 'text-6xl font-bold mb-2 text-orange-500';
+                    } else if (hours >= 2) {
+                        timerDisplay.className = 'text-6xl font-bold mb-2 text-yellow-500';
+                    } else {
+                        timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
+                    }
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Start timer error:', error);
+                document.getElementById('session-timer').textContent = 'ไม่สามารถคำนวณเวลาได้';
+            }
+        }
+
+        // Tab Management
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
+        }
+
+        // Registration Functions - Enhanced with proper data fetching
+        async function handleRegistration(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('reg-submit-btn');
+            const nickname = document.getElementById('reg-nickname').value.trim();
+            const phone = document.getElementById('reg-phone').value.trim();
+            
+            if (!nickname || !phone) {
+                showErrorToast('กรุณากรอกข้อมูลให้ครบถ้วน');
+                return;
+            }
+            
+            // Basic phone validation
+            const phoneRegex = /^[0-9]{9,10}$/;
+            if (!phoneRegex.test(phone.replace(/[-\s]/g, ''))) {
+                showErrorToast('รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
+            
+            try {
+                const payload = {
+                    action: 'registerMember',
+                    userId: userProfile.userId,
+                    displayName: userProfile.displayName,
+                    pictureUrl: userProfile.pictureUrl,
+                    nickname: nickname,
+                    tel: phone
+                };
+                
+                const result = await apiPost(payload);
+                
+                if (result.success) {
+                    showSuccessToast('ลงทะเบียนสำเร็จ!');
+                    
+                    // Fetch complete member data from server instead of using partial local data
+                    await loadUserData();
+                    
+                } else {
+                    throw new Error(result.message);
+                }
+                
+            } catch (error) {
+                showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '🚀 ลงทะเบียนเลย!';
+            }
+        }
+
+        // Profile Management - Enhanced with better data handling
+        function showProfileEdit() {
+            document.getElementById('profile-display').classList.add('hidden');
+            document.getElementById('profile-edit').classList.remove('hidden');
+            
+            // Populate form with current data
+            if (memberData) {
+                document.getElementById('edit-firstname').value = memberData.firstname || '';
+                document.getElementById('edit-lastname').value = memberData.lastname || '';
+                document.getElementById('edit-nickname').value = memberData.nickname || '';
+                document.getElementById('edit-birthdate').value = memberData.birthdate || '';
+                document.getElementById('edit-gender').value = memberData.gender || '';
+                document.getElementById('edit-phone').value = memberData.tel || '';
+            }
+        }
+
+        function hideProfileEdit() {
+            document.getElementById('profile-display').classList.remove('hidden');
+            document.getElementById('profile-edit').classList.add('hidden');
+        }
+
+        async function handleProfileUpdate(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('save-profile-btn');
+            
+            const formData = {
+                firstname: document.getElementById('edit-firstname').value.trim(),
+                lastname: document.getElementById('edit-lastname').value.trim(),
+                nickname: document.getElementById('edit-nickname').value.trim(),
+                birthdate: document.getElementById('edit-birthdate').value,
+                gender: document.getElementById('edit-gender').value,
+                tel: document.getElementById('edit-phone').value.trim()
+            };
+
+            // Validation
+            if (!formData.nickname) {
+                showErrorToast('กรุณากรอกชื่อเล่น');
+                return;
+            }
+
+            if (!formData.tel) {
+                showErrorToast('กรุณากรอกเบอร์โทรศัพท์');
+                return;
+            }
+
+            const phoneRegex = /^[0-9]{9,10}$/;
+            if (!phoneRegex.test(formData.tel.replace(/[-\s]/g, ''))) {
+                showErrorToast('รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '🔄 กำลังบันทึก...';
+            
+            try {
+                const payload = {
+                    action: 'updateMemberInfo',
+                    userId: userProfile.userId,
+                    ...formData
+                };
+                
+                const result = await apiPost(payload);
+                
+                if (result.success) {
+                    // Update local data and refresh all UI components
+                    memberData = { ...memberData, ...formData };
+                    populateMemberInfo();
+                    generateQRCode(); // Refresh QR display info
+                    hideProfileEdit();
+                    
+                    showSuccessToast('บันทึกข้อมูลเรียบร้อยแล้ว!');
+                } else {
+                    throw new Error(result.message);
+                }
+                
+            } catch (error) {
+                showErrorToast(`เกิดข้อผิดพลาด: ${error.message}`);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '💾 บันทึกข้อมูล';
+            }
+        }
+
+        // API Functions - Enhanced error handling
+        async function apiGet(action, params = {}) {
+            try {
+                const url = new URL(API_URL);
+                url.searchParams.append('action', action);
+                Object.entries(params).forEach(([key, value]) => {
+                    url.searchParams.append(key, value);
+                });
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+                const response = await fetch(url, {
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                
+                const result = await response.json();
+                return result;
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
+                }
+                throw error;
+            }
+        }
+
+        async function apiPost(payload) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`Network error: ${response.status} ${response.statusText}`);
+                
+                const result = await response.json();
+                return result;
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('การเชื่อมต่อใช้เวลานานเกินไป');
+                }
+                throw error;
+            }
+        }
+
+        // Utility Functions
+        function formatDate(dateString) {
+            if (!dateString) return '-';
+            try {
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return '-';
+                return date.toLocaleDateString('th-TH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+            } catch {
+                return '-';
+            }
+        }
+
+        function formatGender(gender) {
+            const genderMap = {
+                'Male': 'ชาย',
+                'Female': 'หญิง',
+                'Other': 'อื่นๆ'
+            };
+            return genderMap[gender] || '-';
+        }
+
+        // Event Listeners
+        document.getElementById('refresh-btn').addEventListener('click', loadUserData);
+        document.getElementById('registration-form').addEventListener('submit', handleRegistration);
+        document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
+        
+        // Tab navigation
+        document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr'));
+        document.getElementById('tab-status').addEventListener('click', () => switchTab('status'));
+        document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile'));
+        
+        // Profile edit buttons
+        document.getElementById('edit-profile-btn').addEventListener('click', showProfileEdit);
+        document.getElementById('cancel-edit-btn').addEventListener('click', hideProfileEdit);
+        
+        // Show QR button
+        document.getElementById('show-qr-btn').addEventListener('click', () => switchTab('qr'));
+
+        // Auto-refresh session data every 30 seconds if active session exists
+        setInterval(async () => {
+            if (memberData && document.getElementById('active-session-display').classList.contains('hidden') === false) {
+                try {
+                    const result = await apiGet('getInitialData', { userId: userProfile.userId });
+                    if (result.success && result.data.activeSession) {
+                        // Only update if session is still active
+                        const session = result.data.activeSession;
+                        document.getElementById('session-branch').textContent = session.branch;
+                        document.getElementById('session-table').textContent = session.table;
+                    } else if (result.success && !result.data.activeSession) {
+                        // Session ended, refresh display
+                        displayNoActiveSession();
+                        showSuccessToast('เซสชั่นของคุณสิ้นสุดแล้ว');
+                    }
+                } catch (error) {
+                    // Ignore auto-refresh errors to avoid annoying users
+                    console.error('Auto-refresh error:', error);
+                }
+            }
+        }, 30000);
+    </script>
+</body>
+</html> Configuration
         const LIFF_ID = '2007836924-1X8GmJKj';
         const API_URL = 'https://script.google.com/macros/s/AKfycbz3ZgUNsXBtldRGEOEMjFx3qBYy-3-3XYnZqDWFLr98_zmedokMKsXhdHBK6mTEFVG-1Q/exec';
         
@@ -354,7 +871,9 @@
             membershipStatus: document.getElementById('membership-status'),
             refreshBtn: document.getElementById('refresh-btn'),
             refreshIcon: document.getElementById('refresh-icon'),
-            refreshSpinner: document.getElementById('refresh-spinner')
+            refreshSpinner: document.getElementById('refresh-spinner'),
+            errorToast: document.getElementById('error-toast'),
+            successToast: document.getElementById('success-toast')
         };
 
         // Initialize Application
@@ -408,7 +927,7 @@
                 
             } catch (error) {
                 console.error('Load user data error:', error);
-                showError(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
+                showErrorToast(`ไม่สามารถโหลดข้อมูลได้: ${error.message}`);
             } finally {
                 showRefreshSpinner(false);
             }
@@ -429,370 +948,4 @@
             }
         }
 
-        function showError(message) {
-            document.getElementById('error-message').textContent = message;
-            elements.errorScreen.classList.remove('hidden');
-            elements.loadingScreen.classList.add('hidden');
-        }
-
-        function showRegistrationScreen() {
-            elements.registrationScreen.classList.remove('hidden');
-            elements.memberDashboard.classList.add('hidden');
-        }
-
-        function showMemberDashboard(activeSession) {
-            elements.registrationScreen.classList.add('hidden');
-            elements.memberDashboard.classList.remove('hidden');
-            
-            generateQRCode();
-            populateMemberInfo();
-            
-            if (activeSession) {
-                displayActiveSession(activeSession);
-            } else {
-                displayNoActiveSession();
-            }
-            
-            switchTab(currentTab);
-        }
-
-        function generateQRCode() {
-            const qrContainer = document.getElementById('qr-code');
-            qrContainer.innerHTML = '';
-            
-            try {
-                new QRCode(qrContainer, {
-                    text: userProfile.userId,
-                    width: 200,
-                    height: 200,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-                
-                // Update member info for QR display
-                document.getElementById('qr-member-name').textContent = memberData?.nickname || 'ไม่ระบุ';
-                document.getElementById('qr-member-id').textContent = memberData?.customerId || 'ไม่ระบุ';
-                
-            } catch (error) {
-                qrContainer.innerHTML = '<p class="text-red-500">ไม่สามารถสร้าง QR Code ได้</p>';
-            }
-        }
-
-        function populateMemberInfo() {
-            const profileInfo = document.getElementById('profile-info');
-            
-            if (memberData) {
-                profileInfo.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="flex justify-between items-center p-4 bg-blue-50 rounded-xl">
-                            <span class="text-gray-600">รหัสสมาชิก</span>
-                            <span class="font-bold text-blue-600 text-lg">${memberData.customerId || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">ชื่อเล่น</span>
-                            <span class="font-semibold">${memberData.nickname || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">ชื่อจริง</span>
-                            <span class="font-semibold">${memberData.firstName || '-'} ${memberData.lastName || ''}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">วันเกิด</span>
-                            <span class="font-semibold">${formatDate(memberData.birthdate)}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">เพศ</span>
-                            <span class="font-semibold">${formatGender(memberData.gender)}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gray-50 rounded-xl">
-                            <span class="text-gray-600">เบอร์โทรศัพท์</span>
-                            <span class="font-semibold">${memberData.phone || '-'}</span>
-                        </div>
-                        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl border border-yellow-200">
-                            <span class="text-yellow-700 font-medium">🏆 คะแนนสะสม</span>
-                            <span class="font-bold text-yellow-800 text-lg">${memberData.loyaltyPoints || 0} แต้ม</span>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        function displayActiveSession(session) {
-            document.getElementById('active-session-display').classList.remove('hidden');
-            document.getElementById('no-session-display').classList.add('hidden');
-            
-            // Update session info
-            document.getElementById('session-branch').textContent = session.branch;
-            document.getElementById('session-table').textContent = session.table;
-            
-            // Display players if more than 1
-            if (session.players && session.players.length > 1) {
-                const playersSection = document.getElementById('session-players');
-                const playersList = document.getElementById('players-list');
-                
-                let playersHtml = '';
-                session.players.forEach(player => {
-                    const isCurrentUser = player.userId === userProfile.userId;
-                    playersHtml += `
-                        <div class="flex items-center justify-between p-3 ${isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'} rounded-xl">
-                            <span class="font-medium ${isCurrentUser ? 'text-blue-800' : 'text-gray-700'}">
-                                ${player.nickname} ${isCurrentUser ? '(คุณ)' : ''}
-                            </span>
-                            <span class="text-sm text-gray-600">${player.ticketType || 'ไม่ระบุ'}</span>
-                        </div>
-                    `;
-                });
-                
-                playersList.innerHTML = playersHtml;
-                playersSection.classList.remove('hidden');
-            }
-            
-            // Start timer
-            startSessionTimer(session.checkInTime);
-        }
-
-        function displayNoActiveSession() {
-            document.getElementById('active-session-display').classList.add('hidden');
-            document.getElementById('no-session-display').classList.remove('hidden');
-            
-            // Stop timer if running
-            if (sessionTimer) {
-                clearInterval(sessionTimer);
-                sessionTimer = null;
-            }
-        }
-
-        function startSessionTimer(checkInTime) {
-            if (sessionTimer) clearInterval(sessionTimer);
-            
-            const startTime = new Date(checkInTime).getTime();
-            const timerDisplay = document.getElementById('session-timer');
-            
-            sessionTimer = setInterval(() => {
-                const now = new Date().getTime();
-                const elapsed = now - startTime;
-                
-                const hours = Math.floor(elapsed / (1000 * 60 * 60));
-                const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
-                const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
-                
-                timerDisplay.textContent = 
-                    String(hours).padStart(2, '0') + ':' +
-                    String(minutes).padStart(2, '0') + ':' +
-                    String(seconds).padStart(2, '0');
-                    
-                // Change color based on duration
-                if (hours >= 3) {
-                    timerDisplay.className = 'text-6xl font-bold mb-2 text-red-600';
-                } else if (hours >= 2) {
-                    timerDisplay.className = 'text-6xl font-bold mb-2 text-orange-500';
-                } else {
-                    timerDisplay.className = 'session-timer text-6xl font-bold mb-2';
-                }
-            }, 1000);
-        }
-
-        // Tab Management
-        function switchTab(tabName) {
-            currentTab = tabName;
-            
-            // Update tab buttons
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            
-            // Update tab content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-            document.getElementById(`${tabName}-tab-content`).classList.remove('hidden');
-        }
-
-        // Registration Functions
-        async function handleRegistration(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('reg-submit-btn');
-            const nickname = document.getElementById('reg-nickname').value.trim();
-            const phone = document.getElementById('reg-phone').value.trim();
-            
-            if (!nickname || !phone) {
-                alert('กรุณากรอกข้อมูลให้ครบถ้วน');
-                return;
-            }
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '🔄 กำลังลงทะเบียน...';
-            
-            try {
-                const payload = {
-                    action: 'registerMember',
-                    userId: userProfile.userId,
-                    displayName: userProfile.displayName,
-                    pictureUrl: userProfile.pictureUrl,
-                    nickname: nickname,
-                    phone: phone
-                };
-                
-                const result = await apiPost(payload);
-                
-                if (result.success) {
-                    // Registration successful, reload user data
-                    memberData = {
-                        customerId: result.data.customerId,
-                        nickname: nickname,
-                        phone: phone
-                    };
-                    
-                    showMemberDashboard(null);
-                    updateMembershipStatus('✅ สมาชิก', 'bg-green-500');
-                    
-                } else {
-                    throw new Error(result.message);
-                }
-                
-            } catch (error) {
-                alert(`เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '🚀 ลงทะเบียนเลย!';
-            }
-        }
-
-        // Profile Management
-        function showProfileEdit() {
-            document.getElementById('profile-display').classList.add('hidden');
-            document.getElementById('profile-edit').classList.remove('hidden');
-            
-            // Populate form with current data
-            if (memberData) {
-                document.getElementById('edit-firstname').value = memberData.firstName || '';
-                document.getElementById('edit-lastname').value = memberData.lastName || '';
-                document.getElementById('edit-nickname').value = memberData.nickname || '';
-                document.getElementById('edit-birthdate').value = memberData.birthdate || '';
-                document.getElementById('edit-gender').value = memberData.gender || '';
-                document.getElementById('edit-phone').value = memberData.phone || '';
-            }
-        }
-
-        function hideProfileEdit() {
-            document.getElementById('profile-display').classList.remove('hidden');
-            document.getElementById('profile-edit').classList.add('hidden');
-        }
-
-        async function handleProfileUpdate(e) {
-            e.preventDefault();
-            const submitBtn = document.getElementById('save-profile-btn');
-            
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '🔄 กำลังบันทึก...';
-            
-            try {
-                const payload = {
-                    action: 'updateMember',
-                    userId: userProfile.userId,
-                    firstName: document.getElementById('edit-firstname').value,
-                    lastName: document.getElementById('edit-lastname').value,
-                    nickname: document.getElementById('edit-nickname').value,
-                    birthdate: document.getElementById('edit-birthdate').value,
-                    gender: document.getElementById('edit-gender').value,
-                    phone: document.getElementById('edit-phone').value
-                };
-                
-                const result = await apiPost(payload);
-                
-                if (result.success) {
-                    // Update local data
-                    memberData = { ...memberData, ...payload };
-                    populateMemberInfo();
-                    hideProfileEdit();
-                    
-                    // Show success message
-                    alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
-                } else {
-                    throw new Error(result.message);
-                }
-                
-            } catch (error) {
-                alert(`เกิดข้อผิดพลาด: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = '💾 บันทึกข้อมูล';
-            }
-        }
-
-        // API Functions
-        async function apiGet(action, params = {}) {
-            const url = new URL(API_URL);
-            url.searchParams.append('action', action);
-            Object.entries(params).forEach(([key, value]) => {
-                url.searchParams.append(key, value);
-            });
-
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-            return await response.json();
-        }
-
-        async function apiPost(payload) {
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
-            return await response.json();
-        }
-
-        // Utility Functions
-        function formatDate(dateString) {
-            if (!dateString) return '-';
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('th-TH', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                });
-            } catch {
-                return '-';
-            }
-        }
-
-        function formatGender(gender) {
-            const genderMap = {
-                'Male': 'ชาย',
-                'Female': 'หญิง',
-                'Other': 'อื่นๆ'
-            };
-            return genderMap[gender] || '-';
-        }
-
-        // Event Listeners
-        document.getElementById('refresh-btn').addEventListener('click', loadUserData);
-        document.getElementById('registration-form').addEventListener('submit', handleRegistration);
-        document.getElementById('profile-form').addEventListener('submit', handleProfileUpdate);
-        
-        // Tab navigation
-        document.getElementById('tab-qr').addEventListener('click', () => switchTab('qr'));
-        document.getElementById('tab-status').addEventListener('click', () => switchTab('status'));
-        document.getElementById('tab-profile').addEventListener('click', () => switchTab('profile'));
-        
-        // Profile edit buttons
-        document.getElementById('edit-profile-btn').addEventListener('click', showProfileEdit);
-        document.getElementById('cancel-edit-btn').addEventListener('click', hideProfileEdit);
-        
-        // Show QR button
-        document.getElementById('show-qr-btn').addEventListener('click', () => switchTab('qr'));
-    </script>
-</body>
-</html>
-
-
-
-
-
-
-
-
+        //
