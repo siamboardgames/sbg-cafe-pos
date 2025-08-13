@@ -377,10 +377,11 @@
         // Configuration - อัพเดท URL ใหม่
         const CONFIG = {
             LIFF_ID: '2007836924-1X8GmJKj',
-            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyW1ICRMax2IEtQKDXos-kGXQtFOtqG0I_RnhPIhuxvW4mEMzkaGHdD_c4awLmXbkiPOg/exec', // ✅ ใช้ URL จาก Debug Log
+            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbw1ICRMax2TEtQrQXos-KqXOtFQtqGI_RnRFfhuKxvWd4MEzkGaE1dO_c4awLe0KlPQ6/exec', // ✅ อัพเดท URL ใหม่
             DEBUG_MODE: true, // เปิด debug mode เพื่อดู error details
             RETRY_ATTEMPTS: 3, // จำนวนครั้งที่จะลองใหม่
-            RETRY_DELAY: 1000 // ความล่าช้าระหว่างการลองใหม่ (ms)
+            RETRY_DELAY: 1000, // ความล่าช้าระหว่างการลองใหม่ (ms)
+            USE_GET_FALLBACK: true // ✅ เพิ่ม GET fallback สำหรับ CORS issues
         };
 
         // Global variables
@@ -390,7 +391,7 @@
         let timerInterval = null;
         let currentActiveOrder = null;
 
-        // ✅ แก้ไข API Helper Class ให้จัดการ CORS และ Retry
+        // ✅ แก้ไข API Helper Class ให้จัดการ CORS และ Retry พร้อม GET Fallback
         class APIClient {
             static async post(action, data = {}, attempt = 1) {
                 try {
@@ -401,18 +402,18 @@
                         showDebugInfo(`Sending: ${action} (${attempt}/${CONFIG.RETRY_ATTEMPTS})`, 'reg');
                     }
 
-                    // ✅ ปรับปรุง fetch options สำหรับ CORS
+                    // ✅ ลอง POST ก่อน
                     const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
                         method: 'POST',
-                        mode: 'cors', // ✅ เพิ่ม CORS mode
-                        cache: 'no-cache', // ✅ ไม่ใช้ cache
-                        credentials: 'omit', // ✅ ไม่ส่ง credentials
+                        mode: 'cors', 
+                        cache: 'no-cache', 
+                        credentials: 'omit', 
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json' // ✅ เพิ่ม Accept header
+                            'Accept': 'application/json' 
                         },
-                        redirect: 'follow', // ✅ ตาม redirect
-                        referrerPolicy: 'no-referrer', // ✅ ไม่ส่ง referrer
+                        redirect: 'follow', 
+                        referrerPolicy: 'no-referrer', 
                         body: JSON.stringify(requestBody)
                     });
 
@@ -430,12 +431,24 @@
                     return result;
 
                 } catch (error) {
-                    console.error(`❌ API Error (Attempt ${attempt}):`, action, error);
+                    console.error(`❌ POST Error (Attempt ${attempt}):`, action, error);
                     
-                    // ✅ Retry mechanism
+                    // ✅ ถ้า POST ล้มเหลวและเป็น Public Action ลอง GET
+                    if (CONFIG.USE_GET_FALLBACK && this.isPublicAction(action)) {
+                        try {
+                            if (CONFIG.DEBUG_MODE) {
+                                showDebugInfo(`Trying GET fallback for ${action}...`, 'reg');
+                            }
+                            return await this.getFallback(action, data);
+                        } catch (getFallbackError) {
+                            console.error(`❌ GET Fallback also failed:`, getFallbackError);
+                        }
+                    }
+                    
+                    // ✅ Retry mechanism สำหรับ POST
                     if (attempt < CONFIG.RETRY_ATTEMPTS) {
                         if (CONFIG.DEBUG_MODE) {
-                            showDebugInfo(`Retrying in ${CONFIG.RETRY_DELAY}ms...`, 'reg');
+                            showDebugInfo(`Retrying POST in ${CONFIG.RETRY_DELAY}ms...`, 'reg');
                         }
                         
                         await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
@@ -459,6 +472,43 @@
                     
                     throw new Error(errorMessage + ': ' + error.message);
                 }
+            }
+
+            // ✅ ตรวจสอบว่าเป็น Public Action หรือไม่
+            static isPublicAction(action) {
+                const publicActions = [
+                    'getCustomer', 'getBranches', 'getTickets', 'getPlayerTypes', 
+                    'getActiveOrderByLineId', 'registerCustomer'
+                ];
+                return publicActions.includes(action);
+            }
+
+            // ✅ GET Fallback สำหรับ Public Actions
+            static async getFallback(action, data) {
+                let url = CONFIG.APPS_SCRIPT_URL + '?action=' + action;
+                
+                // เพิ่ม parameters สำหรับ GET
+                if (action === 'getCustomer' && data.lineId) {
+                    url += '&lineId=' + encodeURIComponent(data.lineId);
+                } else if (action === 'getActiveOrderByLineId' && data.lineId) {
+                    url += '&lineId=' + encodeURIComponent(data.lineId);
+                }
+
+                const response = await fetch(url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    credentials: 'omit',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`GET HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                return await response.json();
             }
 
             // ✅ Public API calls พร้อม Enhanced Functions
