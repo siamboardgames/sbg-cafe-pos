@@ -377,8 +377,10 @@
         // Configuration - อัพเดท URL ใหม่
         const CONFIG = {
             LIFF_ID: '2007836924-1X8GmJKj',
-            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbzCTab7cOkd9Et3zsAFsVFgLqs2EqoLVL69AqIta-KuDihRv7Jps1Gw2k28gx3fUbQV9Q/exec', // ⚠️ ต้องแทนที่ด้วย URL ใหม่
-            DEBUG_MODE: true // เปิด debug mode เพื่อดู error details
+            APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyW1ICRMax2IEtQKDXos-kGXQtFOtqG0I_RnhPIhuxvW4mEMzkaGHdD_c4awLmXbkiPOg/exec', // ✅ ใช้ URL จาก Debug Log
+            DEBUG_MODE: true, // เปิด debug mode เพื่อดู error details
+            RETRY_ATTEMPTS: 3, // จำนวนครั้งที่จะลองใหม่
+            RETRY_DELAY: 1000 // ความล่าช้าระหว่างการลองใหม่ (ms)
         };
 
         // Global variables
@@ -388,43 +390,74 @@
         let timerInterval = null;
         let currentActiveOrder = null;
 
-        // ✅ แก้ไข API Helper Class
+        // ✅ แก้ไข API Helper Class ให้จัดการ CORS และ Retry
         class APIClient {
-            static async post(action, data = {}) {
+            static async post(action, data = {}, attempt = 1) {
                 try {
                     const requestBody = { action, ...data };
                     
                     if (CONFIG.DEBUG_MODE) {
-                        console.log('🚀 API Request:', action, requestBody);
-                        showDebugInfo('Sending: ' + action, 'reg');
+                        console.log(`🚀 API Request (Attempt ${attempt}):`, action, requestBody);
+                        showDebugInfo(`Sending: ${action} (${attempt}/${CONFIG.RETRY_ATTEMPTS})`, 'reg');
                     }
 
+                    // ✅ ปรับปรุง fetch options สำหรับ CORS
                     const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
                         method: 'POST',
+                        mode: 'cors', // ✅ เพิ่ม CORS mode
+                        cache: 'no-cache', // ✅ ไม่ใช้ cache
+                        credentials: 'omit', // ✅ ไม่ส่ง credentials
                         headers: {
-                            'Content-Type': 'application/json' // ✅ แก้ไขเป็น JSON
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json' // ✅ เพิ่ม Accept header
                         },
+                        redirect: 'follow', // ✅ ตาม redirect
+                        referrerPolicy: 'no-referrer', // ✅ ไม่ส่ง referrer
                         body: JSON.stringify(requestBody)
                     });
 
                     if (!response.ok) {
-                        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
 
                     const result = await response.json();
                     
                     if (CONFIG.DEBUG_MODE) {
                         console.log('📥 API Response:', action, result);
-                        showDebugInfo('Response: ' + (result.success ? '✅' : '❌') + ' ' + (result.message || 'OK'), 'dashboard');
+                        showDebugInfo(`Response: ${result.success ? '✅' : '❌'} ${result.message || 'OK'}`, 'dashboard');
                     }
 
                     return result;
+
                 } catch (error) {
-                    console.error('❌ API Error:', action, error);
-                    if (CONFIG.DEBUG_MODE) {
-                        showDebugInfo('Error: ' + error.message, 'reg');
+                    console.error(`❌ API Error (Attempt ${attempt}):`, action, error);
+                    
+                    // ✅ Retry mechanism
+                    if (attempt < CONFIG.RETRY_ATTEMPTS) {
+                        if (CONFIG.DEBUG_MODE) {
+                            showDebugInfo(`Retrying in ${CONFIG.RETRY_DELAY}ms...`, 'reg');
+                        }
+                        
+                        await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY));
+                        return this.post(action, data, attempt + 1);
                     }
-                    throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
+                    
+                    // ✅ แสดง error ที่ชัดเจนขึ้น
+                    let errorMessage = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+                    
+                    if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                        errorMessage = '❌ ไม่สามารถเชื่อมต่อ Apps Script ได้ - ตรวจสอบ URL หรือ CORS settings';
+                    } else if (error.message.includes('CORS')) {
+                        errorMessage = '❌ CORS Policy Error - Backend ยังไม่ได้ Deploy version ใหม่';
+                    } else if (error.message.includes('HTTP')) {
+                        errorMessage = `❌ Server Error: ${error.message}`;
+                    }
+                    
+                    if (CONFIG.DEBUG_MODE) {
+                        showDebugInfo(`Final Error: ${error.message}`, 'reg');
+                    }
+                    
+                    throw new Error(errorMessage + ': ' + error.message);
                 }
             }
 
@@ -857,32 +890,55 @@
             }
         });
 
-        // ✅ วิธีการตรวจสอบ Connection
+        // ✅ วิธีการตรวจสอบ Connection แบบละเอียด
         async function testConnection() {
             try {
-                showDebugInfo('Testing connection...', 'dashboard');
+                showDebugInfo('🔍 Testing connection...', 'dashboard');
                 
-                // ทดสอบด้วยการเรียก API ง่ายๆ
+                // ทดสอบ 1: ลองเรียก API ง่ายๆ
+                console.log('📡 Testing basic connection...');
                 const testResult = await fetch(CONFIG.APPS_SCRIPT_URL, {
                     method: 'POST',
+                    mode: 'cors',
+                    cache: 'no-cache',
+                    credentials: 'omit',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
+                    redirect: 'follow',
+                    referrerPolicy: 'no-referrer',
                     body: JSON.stringify({
                         action: 'getBranches'
                     })
                 });
 
+                console.log('📊 Response status:', testResult.status);
+                console.log('📊 Response headers:', testResult.headers);
+
                 if (testResult.ok) {
                     const result = await testResult.json();
-                    showDebugInfo('Connection OK: ' + JSON.stringify(result), 'dashboard');
+                    showDebugInfo('✅ Connection OK: ' + JSON.stringify(result).substring(0, 100), 'dashboard');
+                    console.log('✅ Full response:', result);
                     return true;
                 } else {
-                    showDebugInfo('Connection Failed: ' + testResult.status, 'dashboard');
+                    showDebugInfo(`❌ HTTP ${testResult.status}: ${testResult.statusText}`, 'dashboard');
+                    console.error('❌ Response not OK:', testResult);
                     return false;
                 }
             } catch (error) {
-                showDebugInfo('Connection Error: ' + error.message, 'dashboard');
+                showDebugInfo('❌ Connection Error: ' + error.message, 'dashboard');
+                console.error('❌ Full error:', error);
+                
+                // ✅ วิเคราะห์ error type
+                if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                    console.error('🔍 Analysis: CORS or Network Error');
+                    showDebugInfo('🔍 CORS/Network issue detected', 'dashboard');
+                } else if (error.message.includes('CORS')) {
+                    console.error('🔍 Analysis: CORS Policy Error');
+                    showDebugInfo('🔍 CORS policy issue', 'dashboard');
+                }
+                
                 return false;
             }
         }
@@ -893,15 +949,20 @@
                 console.log('🚀 Starting Customer LIFF App...');
                 console.log('📍 Apps Script URL:', CONFIG.APPS_SCRIPT_URL);
                 
-                // แสดง warning ถ้า URL ยังไม่ได้แทนที่
-                if (CONFIG.APPS_SCRIPT_URL.includes('YOUR_NEW_DEPLOYED_WEB_APP_URL_HERE')) {
-                    console.warn('⚠️ กรุณาแทนที่ APPS_SCRIPT_URL ด้วย URL ที่ Deploy จริง!');
-                    showError('กรุณาอัพเดท URL ของ Apps Script ใน CONFIG', 'reg');
-                    return;
-                }
+                // ✅ ไม่ต้องเช็ค placeholder เพราะใช้ URL จริงแล้ว
+                console.log('🔗 URL is configured');
             }
 
-            initializeLiff();
+            // ✅ ทดสอบการเชื่อมต่อก่อนเริ่ม LIFF
+            testConnection().then(success => {
+                if (success) {
+                    console.log('✅ Connection test passed, starting LIFF...');
+                    initializeLiff();
+                } else {
+                    console.error('❌ Connection test failed');
+                    showError('ไม่สามารถเชื่อมต่อ Backend ได้ กรุณาตรวจสอบการ Deploy', 'reg');
+                }
+            });
         };
 
         // ✅ เพิ่ม Global Functions สำหรับ Debug
@@ -911,4 +972,3 @@
     </script>
 </body>
 </html>
-
