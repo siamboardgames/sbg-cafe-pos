@@ -138,6 +138,7 @@
             border-radius: 10px;
             text-align: center;
             margin: 20px 0;
+            border-left: 5px solid #ee5a24;
         }
 
         .timer-display h3 {
@@ -149,6 +150,24 @@
             font-size: 36px;
             font-weight: bold;
             color: #ee5a24;
+        }
+
+        .playing-info {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border-left: 5px solid #27ae60;
+        }
+
+        .playing-info h4 {
+            color: #27ae60;
+            margin-bottom: 8px;
+        }
+
+        .playing-info p {
+            color: #2c3e50;
+            margin: 5px 0;
         }
 
         .loading {
@@ -208,6 +227,21 @@
         .btn-secondary {
             background: linear-gradient(45deg, #3498db, #2980b9);
         }
+
+        .debug-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #666;
+            border: 1px solid #dee2e6;
+        }
+
+        .debug-info h5 {
+            margin: 0 0 5px 0;
+            color: #495057;
+        }
     </style>
 </head>
 <body>
@@ -227,6 +261,12 @@
             <div class="content">
                 <div id="regError" class="error hidden"></div>
                 <div id="regSuccess" class="success hidden"></div>
+                
+                <!-- Debug Info -->
+                <div id="regDebugInfo" class="debug-info hidden">
+                    <h5>🔧 Debug Information</h5>
+                    <p id="regDebugText"></p>
+                </div>
                 
                 <form id="registerForm">
                     <div class="form-group">
@@ -257,6 +297,12 @@
                 <p>สมาชิก</p>
             </div>
             <div class="content">
+                <!-- Debug Info -->
+                <div id="dashboardDebugInfo" class="debug-info hidden">
+                    <h5>🔧 Debug Information</h5>
+                    <p id="dashboardDebugText"></p>
+                </div>
+
                 <!-- Member Card -->
                 <div class="member-card">
                     <div class="member-id" id="memberId"></div>
@@ -270,18 +316,27 @@
                     </div>
                 </div>
 
-                <!-- QR Code -->
-                <div class="qr-container">
-                    <h3>QR Code สำหรับ Check-in/Check-out</h3>
-                    <div class="qr-code">
-                        <canvas id="qrcode"></canvas>
-                    </div>
+                <!-- Playing Status Info -->
+                <div id="playingInfo" class="playing-info hidden">
+                    <h4>📍 สถานะการเล่น</h4>
+                    <p><strong>รหัส Order:</strong> <span id="currentOrderId">-</span></p>
+                    <p><strong>สาขา:</strong> <span id="currentBranch">-</span></p>
+                    <p><strong>จำนวนผู้เล่น:</strong> <span id="currentPlayerCount">-</span></p>
                 </div>
 
                 <!-- Timer Display (shown when playing) -->
                 <div id="timerDisplay" class="timer-display hidden">
                     <h3>⏰ กำลังเล่น</h3>
                     <div class="timer" id="playTimer">00:00:00</div>
+                    <p style="margin-top: 10px; color: #666;">เริ่มเล่นเมื่อ: <span id="startTime">-</span></p>
+                </div>
+
+                <!-- QR Code -->
+                <div class="qr-container">
+                    <h3>QR Code สำหรับ Check-in/Check-out</h3>
+                    <div class="qr-code">
+                        <canvas id="qrcode"></canvas>
+                    </div>
                 </div>
 
                 <!-- Action Buttons -->
@@ -318,303 +373,541 @@
         </div>
     </div>
 
-<script>
-    // Configuration
-    const CONFIG = {
-        LIFF_ID: '2007836924-1X8GmJKj', // ใส่ LIFF ID ของคุณที่นี่
-        APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwgVmFQrQfcHWqbZWgDaxzGZF4xjiDfyLPEOziqekjbGlachhDg-xA-Wl_jLMIk_44G3A/exec' // ใส่ URL ของ Web App ที่ Deploy แล้ว
-    };
+    <script>
+        // Configuration - อัพเดท URL ใหม่
+        const CONFIG = {
+            LIFF_ID: '2007836924-1X8GmJKj',
+            APPS_SCRIPT_URL: 'YOUR_NEW_DEPLOYED_WEB_APP_URL_HERE', // ⚠️ ต้องแทนที่ด้วย URL ใหม่
+            DEBUG_MODE: true // เปิด debug mode เพื่อดู error details
+        };
 
-    // Global variables
-    let currentCustomer = null;
-    let currentLineProfile = null;
-    let playStartTime = null;
-    let timerInterval = null;
+        // Global variables
+        let currentCustomer = null;
+        let currentLineProfile = null;
+        let playStartTime = null;
+        let timerInterval = null;
+        let currentActiveOrder = null;
 
-    // API Helper Class (Corrected Version)
-    class APIClient {
-        static async post(action, data = {}) {
+        // ✅ แก้ไข API Helper Class
+        class APIClient {
+            static async post(action, data = {}) {
+                try {
+                    const requestBody = { action, ...data };
+                    
+                    if (CONFIG.DEBUG_MODE) {
+                        console.log('🚀 API Request:', action, requestBody);
+                        showDebugInfo('Sending: ' + action, 'reg');
+                    }
+
+                    const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json' // ✅ แก้ไขเป็น JSON
+                        },
+                        body: JSON.stringify(requestBody)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (CONFIG.DEBUG_MODE) {
+                        console.log('📥 API Response:', action, result);
+                        showDebugInfo('Response: ' + (result.success ? '✅' : '❌') + ' ' + (result.message || 'OK'), 'dashboard');
+                    }
+
+                    return result;
+                } catch (error) {
+                    console.error('❌ API Error:', action, error);
+                    if (CONFIG.DEBUG_MODE) {
+                        showDebugInfo('Error: ' + error.message, 'reg');
+                    }
+                    throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์: ' + error.message);
+                }
+            }
+
+            // ✅ Public API calls พร้อม Enhanced Functions
+            static async getCustomer(lineId) {
+                return this.post('getCustomer', { lineId });
+            }
+
+            static async registerCustomer(customerData) {
+                return this.post('registerCustomer', customerData);
+            }
+
+            // ✅ ใช้ Enhanced Function ใหม่
+            static async updateCustomerProfile(lineId, updateData) {
+                return this.post('updateCustomerProfile', { lineId, updateData });
+            }
+
+            // ✅ ใช้ Enhanced Function ใหม่
+            static async getActiveOrder(lineId) {
+                return this.post('getActiveOrderByLineId', { lineId });
+            }
+        }
+
+        // ✅ LIFF Initialization
+        async function initializeLiff() {
             try {
-                const requestBody = { action, ...data };
-                console.log('API Request:', action, requestBody);
-
-                const response = await fetch(CONFIG.APPS_SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'cors',
-                    credentials: 'omit',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(requestBody),
-                    redirect: 'follow'
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Network response error: ${response.statusText}`);
+                showLoading(true);
+                
+                if (CONFIG.DEBUG_MODE) {
+                    showDebugInfo('Initializing LIFF...', 'reg');
                 }
 
-                const result = await response.json();
-                console.log('API Response:', action, result);
-                return result;
+                await liff.init({ liffId: CONFIG.LIFF_ID });
+
+                if (!liff.isLoggedIn()) {
+                    liff.login();
+                    return;
+                }
+
+                currentLineProfile = await liff.getProfile();
+                
+                if (CONFIG.DEBUG_MODE) {
+                    console.log('👤 LINE Profile:', currentLineProfile);
+                    showDebugInfo('LINE ID: ' + currentLineProfile.userId.substring(0, 10) + '...', 'reg');
+                }
+
+                await checkCustomerStatus(currentLineProfile.userId);
+
             } catch (error) {
-                console.error('API Error:', action, error);
-                throw new Error('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+                console.error('❌ LIFF initialization failed:', error);
+                showError('การเชื่อมต่อ LINE ล้มเหลว: ' + error.message);
+                showLoading(false);
             }
         }
 
-        static getCustomer(lineId) {
-            return this.post('getCustomer', { lineId });
-        }
-        static registerCustomer(customerData) {
-            return this.post('registerCustomer', customerData);
-        }
-        static updateCustomerProfile(lineId, updateData) {
-            return this.post('updateCustomerProfile', { lineId, updateData });
-        }
-        static getActiveOrder(lineId) {
-            return this.post('getActiveOrderByLineId', { lineId });
-        }
-    }
+        // ✅ Check customer status และเรียก playing status ด้วย
+        async function checkCustomerStatus(lineId) {
+            try {
+                const result = await APIClient.getCustomer(lineId);
 
-    // Main App Initialization
-    async function initializeLiff() {
-        try {
-            showLoading(true);
-            await liff.init({ liffId: CONFIG.LIFF_ID });
-
-            if (!liff.isLoggedIn()) {
-                liff.login();
-                return;
-            }
-
-            currentLineProfile = await liff.getProfile();
-            console.log('LINE Profile:', currentLineProfile);
-            await checkCustomerStatus(currentLineProfile.userId);
-
-        } catch (error) {
-            console.error('LIFF initialization failed:', error);
-            showError('การเชื่อมต่อ LINE ล้มเหลว กรุณาตรวจสอบการตั้งค่า LIFF');
-            showLoading(false);
-        }
-    }
-
-    // Data Fetching and State Management
-    async function checkCustomerStatus(lineId) {
-        try {
-            const result = await APIClient.getCustomer(lineId);
-            if (result.success) {
-                currentCustomer = result.customer;
-                showMemberDashboard();
-                await checkPlayingStatus();
-            } else {
-                showRegistrationForm();
-            }
-        } catch (error) {
-            console.error('Error checking customer status:', error);
-            showError('เกิดข้อผิดพลาดในการตรวจสอบสถานะสมาชิก');
-        } finally {
-            showLoading(false);
-        }
-    }
-
-    async function checkPlayingStatus() {
-        if (!currentCustomer) return;
-        try {
-            const result = await APIClient.getActiveOrder(currentCustomer.lineId);
-            if (result.success && result.order) {
-                playStartTime = new Date(result.order.checkInTime);
-                startTimer();
-            } else {
-                stopTimer();
-            }
-        } catch (error) {
-            console.error("Error checking playing status:", error);
-            showError("ไม่สามารถอัปเดตสถานะการเล่นได้");
-        }
-    }
-
-    // Form Handlers
-    async function registerCustomer(event) {
-        event.preventDefault();
-        const submitBtn = document.getElementById('registerBtn');
-        const originalText = submitBtn.textContent;
-        try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'กำลังสมัคร...';
-            clearMessages('reg');
-            const formData = {
-                lineId: currentLineProfile.userId,
-                nickname: document.getElementById('nickname').value.trim(),
-                phone: document.getElementById('phone').value.trim(),
-                email: document.getElementById('email').value.trim() || null,
-                birthday: document.getElementById('birthday').value || null
-            };
-            if (!formData.nickname || !formData.phone) throw new Error('กรุณากรอกชื่อเล่นและเบอร์โทรศัพท์');
-            const result = await APIClient.registerCustomer(formData);
-            if (result.success) {
-                showSuccess('สมัครสมาชิกสำเร็จ!', 'reg');
-                currentCustomer = { customerId: result.customerId, ...formData, points: 0 };
-                setTimeout(() => {
+                if (result.success) {
+                    // Customer exists
+                    currentCustomer = result.customer;
                     showMemberDashboard();
-                    checkPlayingStatus();
-                }, 1500);
-            } else {
-                throw new Error(result.message || 'การสมัครสมาชิกล้มเหลว');
+                    
+                    // ✅ เช็คสถานะการเล่นจาก Backend จริง
+                    await checkPlayingStatus();
+                } else {
+                    // Customer not found, show registration
+                    showRegistrationForm();
+                }
+            } catch (error) {
+                console.error('❌ Error checking customer status:', error);
+                showError('เกิดข้อผิดพลาดในการตรวจสอบสถานะสมาชิก: ' + error.message);
+            } finally {
+                showLoading(false);
             }
-        } catch (error) {
-            console.error('Registration error:', error);
-            showError(error.message, 'reg');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
         }
-    }
 
-    async function updateCustomerProfile(event) {
-        event.preventDefault();
-        const submitBtn = document.getElementById('updateBtn');
-        const originalText = submitBtn.textContent;
-        try {
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'กำลังบันทึก...';
-            clearMessages('edit');
-            const updateData = {
-                nickname: document.getElementById('editNickname').value.trim(),
-                phone: document.getElementById('editPhone').value.trim(),
-                email: document.getElementById('editEmail').value.trim() || null,
-                birthday: document.getElementById('birthday').value || null
-            };
-            const result = await APIClient.updateCustomerProfile(currentLineProfile.userId, updateData);
-            if (result.success) {
-                showSuccess('บันทึกข้อมูลสำเร็จ!', 'edit');
-                currentCustomer = { ...currentCustomer, ...updateData };
-                document.getElementById('memberName').textContent = currentCustomer.nickname;
-                setTimeout(toggleEditForm, 1500);
-            } else {
-                throw new Error(result.message || 'การแก้ไขข้อมูลล้มเหลว');
+        // ✅ เช็คสถานะการเล่นจาก Enhanced Backend
+        async function checkPlayingStatus() {
+            if (!currentCustomer || !currentLineProfile) return;
+
+            try {
+                if (CONFIG.DEBUG_MODE) {
+                    showDebugInfo('Checking playing status...', 'dashboard');
+                }
+
+                const result = await APIClient.getActiveOrder(currentLineProfile.userId);
+                
+                if (result.success && result.order) {
+                    // พบว่ากำลังเล่นอยู่
+                    currentActiveOrder = result.order;
+                    playStartTime = new Date(result.order.checkInTime);
+                    
+                    // แสดงข้อมูลการเล่น
+                    showPlayingInfo(result.order);
+                    startTimer();
+                    
+                    if (CONFIG.DEBUG_MODE) {
+                        showDebugInfo('Currently playing: Order ' + result.order.orderId, 'dashboard');
+                    }
+                } else {
+                    // ไม่ได้เล่นอยู่
+                    currentActiveOrder = null;
+                    hidePlayingInfo();
+                    stopTimer();
+                    
+                    if (CONFIG.DEBUG_MODE) {
+                        showDebugInfo('Not currently playing', 'dashboard');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error checking playing status:', error);
+                showError('ไม่สามารถอัปเดตสถานะการเล่นได้: ' + error.message);
             }
-        } catch (error) {
-            console.error('Update error:', error);
-            showError(error.message, 'edit');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = originalText;
         }
-    }
-    
-    // UI Update Functions
-    function showRegistrationForm() {
-        hideAllScreens();
-        document.getElementById('registrationForm').classList.remove('hidden');
-        if (currentLineProfile) {
-            document.getElementById('nickname').value = currentLineProfile.displayName || '';
-        }
-    }
-    function showMemberDashboard() {
-        hideAllScreens();
-        document.getElementById('memberDashboard').classList.remove('hidden');
-        document.getElementById('memberId').textContent = currentCustomer.customerId;
-        document.getElementById('memberName').textContent = currentCustomer.nickname;
-        document.getElementById('memberPoints').textContent = `${currentCustomer.points || 0} แต้ม`;
-        generateQRCode(currentCustomer.customerId);
-        populateEditForm();
-    }
-    function populateEditForm() {
-        if (currentCustomer) {
-            document.getElementById('editNickname').value = currentCustomer.nickname;
-            document.getElementById('editPhone').value = currentCustomer.phone;
-            document.getElementById('editEmail').value = currentCustomer.email || '';
-            document.getElementById('editBirthday').value = currentCustomer.birthday || '';
-        }
-    }
-    function generateQRCode(customerId) {
-        QRCode.toCanvas(document.getElementById('qrcode'), customerId, {
-            width: 200, margin: 2, color: { dark: '#000000', light: '#FFFFFF' }
-        }, (error) => { if (error) console.error('QR Code generation error:', error); });
-    }
-    function startTimer() {
-        document.getElementById('timerDisplay').classList.remove('hidden');
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = setInterval(() => {
-            if (!playStartTime) return;
-            const elapsed = new Date() - playStartTime;
-            const hours = Math.floor(elapsed / 3600000);
-            const minutes = Math.floor((elapsed % 3600000) / 60000);
-            const seconds = Math.floor((elapsed % 60000) / 1000);
-            const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            document.getElementById('playTimer').textContent = timeString;
-        }, 1000);
-    }
-    function stopTimer() {
-        if (timerInterval) clearInterval(timerInterval);
-        timerInterval = null;
-        document.getElementById('timerDisplay').classList.add('hidden');
-        playStartTime = null;
-    }
 
-    // UI Helper Functions
-    function toggleEditForm() {
-        const editForm = document.getElementById('editForm');
-        const editBtn = document.getElementById('editBtn');
-        const isHidden = editForm.classList.toggle('hidden');
-        editBtn.textContent = isHidden ? 'แก้ไขข้อมูลส่วนตัว' : 'ยกเลิกการแก้ไข';
-        clearMessages('edit');
-    }
-    async function refreshData() {
-        if (currentLineProfile) {
-            showLoading(true);
-            await checkCustomerStatus(currentLineProfile.userId);
+        // ✅ แสดงข้อมูลการเล่น
+        function showPlayingInfo(order) {
+            document.getElementById('currentOrderId').textContent = order.orderId;
+            document.getElementById('currentBranch').textContent = order.branchId;
+            document.getElementById('currentPlayerCount').textContent = order.playerCount + ' คน';
+            document.getElementById('playingInfo').classList.remove('hidden');
         }
-    }
-    function hideAllScreens() {
-        ['loadingScreen', 'registrationForm', 'memberDashboard'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.classList.add('hidden');
+
+        function hidePlayingInfo() {
+            document.getElementById('playingInfo').classList.add('hidden');
+        }
+
+        // Registration function
+        async function registerCustomer(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('registerBtn');
+            const originalText = submitBtn.textContent;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'กำลังสมัคร...';
+                clearMessages('reg');
+
+                const formData = {
+                    lineId: currentLineProfile.userId,
+                    nickname: document.getElementById('nickname').value.trim(),
+                    phone: document.getElementById('phone').value.trim(),
+                    email: document.getElementById('email').value.trim() || null,
+                    birthday: document.getElementById('birthday').value || null
+                };
+
+                if (!formData.nickname || !formData.phone) {
+                    throw new Error('กรุณากรอกชื่อเล่นและเบอร์โทรศัพท์');
+                }
+
+                const result = await APIClient.registerCustomer(formData);
+
+                if (result.success) {
+                    showSuccess('สมัครสมาชิกสำเร็จ!', 'reg');
+                    
+                    currentCustomer = {
+                        customerId: result.customerId,
+                        lineId: formData.lineId,
+                        nickname: formData.nickname,
+                        phone: formData.phone,
+                        email: formData.email || '',
+                        birthday: formData.birthday || '',
+                        points: 0
+                    };
+                    
+                    setTimeout(() => {
+                        showMemberDashboard();
+                        checkPlayingStatus(); // เช็คสถานะการเล่นด้วย
+                    }, 1500);
+                } else {
+                    throw new Error(result.message || 'การสมัครสมาชิกล้มเหลว');
+                }
+            } catch (error) {
+                console.error('❌ Registration error:', error);
+                showError(error.message, 'reg');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+
+        // ✅ Update customer profile ใช้ Enhanced API
+        async function updateCustomerProfile(event) {
+            event.preventDefault();
+            
+            const submitBtn = document.getElementById('updateBtn');
+            const originalText = submitBtn.textContent;
+            
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'กำลังบันทึก...';
+                clearMessages('edit');
+
+                const updateData = {
+                    nickname: document.getElementById('editNickname').value.trim(),
+                    phone: document.getElementById('editPhone').value.trim(),
+                    email: document.getElementById('editEmail').value.trim() || null,
+                    birthday: document.getElementById('editBirthday').value || null // ✅ แก้ไข field name
+                };
+
+                // ✅ ใช้ Enhanced API
+                const result = await APIClient.updateCustomerProfile(currentLineProfile.userId, updateData);
+
+                if (result.success) {
+                    showSuccess('บันทึกข้อมูลสำเร็จ!', 'edit');
+                    
+                    // อัปเดตข้อมูลใน currentCustomer และ UI
+                    Object.assign(currentCustomer, updateData);
+                    document.getElementById('memberName').textContent = currentCustomer.nickname;
+                    
+                    setTimeout(() => toggleEditForm(), 1500);
+                } else {
+                    throw new Error(result.message || 'การแก้ไขข้อมูลล้มเหลว');
+                }
+            } catch (error) {
+                console.error('❌ Update error:', error);
+                showError(error.message, 'edit');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        }
+
+        // UI Update Functions
+        function showRegistrationForm() {
+            hideAllScreens();
+            document.getElementById('registrationForm').classList.remove('hidden');
+            
+            if (currentLineProfile) {
+                document.getElementById('nickname').value = currentLineProfile.displayName || '';
+            }
+        }
+
+        function showMemberDashboard() {
+            hideAllScreens();
+            document.getElementById('memberDashboard').classList.remove('hidden');
+            
+            // Update member info
+            document.getElementById('memberId').textContent = currentCustomer.customerId;
+            document.getElementById('memberName').textContent = currentCustomer.nickname;
+            document.getElementById('memberPoints').textContent = `${currentCustomer.points || 0} แต้ม`;
+            
+            // Generate QR Code
+            generateQRCode(currentCustomer.customerId);
+            
+            // Fill edit form with current data
+            populateEditForm();
+        }
+
+        function populateEditForm() {
+            if (currentCustomer) {
+                document.getElementById('editNickname').value = currentCustomer.nickname;
+                document.getElementById('editPhone').value = currentCustomer.phone;
+                document.getElementById('editEmail').value = currentCustomer.email || '';
+                document.getElementById('editBirthday').value = currentCustomer.birthday || '';
+            }
+        }
+
+        function generateQRCode(customerId) {
+            const canvas = document.getElementById('qrcode');
+            QRCode.toCanvas(canvas, customerId, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('❌ QR Code generation error:', error);
+                }
+            });
+        }
+
+        // ✅ Timer functions (ใช้ข้อมูลจาก Backend)
+        function startTimer() {
+            document.getElementById('timerDisplay').classList.remove('hidden');
+            
+            if (playStartTime) {
+                const startTimeStr = playStartTime.toLocaleString('th-TH');
+                document.getElementById('startTime').textContent = startTimeStr;
+            }
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            timerInterval = setInterval(() => {
+                if (playStartTime) {
+                    const now = new Date();
+                    const elapsed = now - playStartTime;
+                    const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                    const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+                    
+                    const timeString = 
+                        hours.toString().padStart(2, '0') + ':' +
+                        minutes.toString().padStart(2, '0') + ':' +
+                        seconds.toString().padStart(2, '0');
+                    
+                    document.getElementById('playTimer').textContent = timeString;
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            document.getElementById('timerDisplay').classList.add('hidden');
+            playStartTime = null;
+        }
+
+        // UI Helper functions
+        function toggleEditForm() {
+            const editForm = document.getElementById('editForm');
+            const editBtn = document.getElementById('editBtn');
+            
+            if (editForm.classList.contains('hidden')) {
+                editForm.classList.remove('hidden');
+                editBtn.textContent = 'ยกเลิกการแก้ไข';
+                clearMessages('edit');
+            } else {
+                editForm.classList.add('hidden');
+                editBtn.textContent = 'แก้ไขข้อมูลส่วนตัว';
+                clearMessages('edit');
+            }
+        }
+
+        // ✅ Refresh data จาก Backend
+        async function refreshData() {
+            if (currentLineProfile) {
+                showLoading(true);
+                await checkCustomerStatus(currentLineProfile.userId);
+            }
+        }
+
+        function hideAllScreens() {
+            document.getElementById('loadingScreen').classList.add('hidden');
+            document.getElementById('registrationForm').classList.add('hidden');
+            document.getElementById('memberDashboard').classList.add('hidden');
+        }
+
+        function showLoading(show) {
+            if (show) {
+                hideAllScreens();
+                document.getElementById('loadingScreen').classList.remove('hidden');
+            } else {
+                document.getElementById('loadingScreen').classList.add('hidden');
+            }
+        }
+
+        function showError(message, prefix = '') {
+            const errorElement = document.getElementById(prefix + 'Error');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+                setTimeout(() => {
+                    errorElement.classList.add('hidden');
+                }, 8000); // เพิ่มเวลาแสดง error
+            } else {
+                alert(message);
+            }
+        }
+
+        function showSuccess(message, prefix = '') {
+            const successElement = document.getElementById(prefix + 'Success');
+            if (successElement) {
+                successElement.textContent = message;
+                successElement.classList.remove('hidden');
+                setTimeout(() => {
+                    successElement.classList.add('hidden');
+                }, 3000);
+            }
+        }
+
+        function clearMessages(prefix = '') {
+            const errorElement = document.getElementById(prefix + 'Error');
+            const successElement = document.getElementById(prefix + 'Success');
+            
+            if (errorElement) errorElement.classList.add('hidden');
+            if (successElement) successElement.classList.add('hidden');
+        }
+
+        // ✅ Debug function
+        function showDebugInfo(message, prefix = '') {
+            if (!CONFIG.DEBUG_MODE) return;
+            
+            const debugElement = document.getElementById(prefix + 'DebugInfo');
+            const debugText = document.getElementById(prefix + 'DebugText');
+            
+            if (debugElement && debugText) {
+                debugText.textContent = new Date().toLocaleTimeString() + ': ' + message;
+                debugElement.classList.remove('hidden');
+                
+                // Auto hide after 5 seconds
+                setTimeout(() => {
+                    debugElement.classList.add('hidden');
+                }, 5000);
+            }
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // ✅ แก้ไข event listener ให้ใช้ฟังก์ชันที่ถูกต้อง
+            document.getElementById('registerForm').addEventListener('submit', registerCustomer);
+            document.getElementById('updateForm').addEventListener('submit', updateCustomerProfile);
         });
-    }
-    function showLoading(show) {
-        hideAllScreens();
-        const loadingScreen = document.getElementById('loadingScreen');
-        if (show && loadingScreen) loadingScreen.classList.remove('hidden');
-    }
-    function showError(message, prefix = '') {
-        const errorElement = document.getElementById(`${prefix}Error`);
-        if (errorElement) {
-            errorElement.textContent = message;
-            errorElement.classList.remove('hidden');
-        } else {
-            alert(message);
+
+        // Listen for messages from staff app (for check-in/check-out notifications)
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'checkin' && currentCustomer) {
+                // เมื่อได้รับสัญญาณ check-in ให้รีเฟรชสถานะ
+                checkPlayingStatus();
+            } else if (event.data.type === 'checkout') {
+                // เมื่อได้รับสัญญาณ check-out ให้รีเฟรชสถานะ
+                checkPlayingStatus();
+            }
+        });
+
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', function() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+        });
+
+        // ✅ วิธีการตรวจสอบ Connection
+        async function testConnection() {
+            try {
+                showDebugInfo('Testing connection...', 'dashboard');
+                
+                // ทดสอบด้วยการเรียก API ง่ายๆ
+                const testResult = await fetch(CONFIG.APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        action: 'getBranches'
+                    })
+                });
+
+                if (testResult.ok) {
+                    const result = await testResult.json();
+                    showDebugInfo('Connection OK: ' + JSON.stringify(result), 'dashboard');
+                    return true;
+                } else {
+                    showDebugInfo('Connection Failed: ' + testResult.status, 'dashboard');
+                    return false;
+                }
+            } catch (error) {
+                showDebugInfo('Connection Error: ' + error.message, 'dashboard');
+                return false;
+            }
         }
-    }
-    function showSuccess(message, prefix = '') {
-        const successElement = document.getElementById(`${prefix}Success`);
-        if (successElement) {
-            successElement.textContent = message;
-            successElement.classList.remove('hidden');
-            setTimeout(() => successElement.classList.add('hidden'), 3000);
-        }
-    }
-    function clearMessages(prefix = '') {
-        const errorElement = document.getElementById(`${prefix}Error`);
-        const successElement = document.getElementById(`${prefix}Success`);
-        if (errorElement) errorElement.classList.add('hidden');
-        if (successElement) successElement.classList.add('hidden');
-    }
 
-    // --- Main Execution ---
-    document.addEventListener('DOMContentLoaded', function() {
-        // Attach form submit listeners
-        document.getElementById('registerForm').addEventListener('submit', registerCustomer);
-        document.getElementById('updateForm').addEventListener('submit', updateCustomerProfile);
+        // ✅ Initialize app when page loads
+        window.onload = function() {
+            if (CONFIG.DEBUG_MODE) {
+                console.log('🚀 Starting Customer LIFF App...');
+                console.log('📍 Apps Script URL:', CONFIG.APPS_SCRIPT_URL);
+                
+                // แสดง warning ถ้า URL ยังไม่ได้แทนที่
+                if (CONFIG.APPS_SCRIPT_URL.includes('YOUR_NEW_DEPLOYED_WEB_APP_URL_HERE')) {
+                    console.warn('⚠️ กรุณาแทนที่ APPS_SCRIPT_URL ด้วย URL ที่ Deploy จริง!');
+                    showError('กรุณาอัพเดท URL ของ Apps Script ใน CONFIG', 'reg');
+                    return;
+                }
+            }
 
-        // Initialize the main application logic
-        initializeLiff();
-    });
+            initializeLiff();
+        };
 
-    // Cleanup when page unloads
-    window.addEventListener('beforeunload', () => {
-        if (timerInterval) clearInterval(timerInterval);
-    });
-</script>
-
-
-
-
+        // ✅ เพิ่ม Global Functions สำหรับ Debug
+        window.testConnection = testConnection;
+        window.checkPlayingStatus = checkPlayingStatus;
+        window.refreshData = refreshData;
+    </script>
+</body>
+</html>
