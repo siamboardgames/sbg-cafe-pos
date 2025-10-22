@@ -20,19 +20,43 @@
         <div id="registerView" style="display: none;" class="mt-3">
             <h3 class="text-center">สมัครสมาชิก</h3>
             <p class="text-center text-muted">กรอกข้อมูลเพื่อรับรหัสลูกค้าสำหรับใช้งาน</p>
-            <form id="registerForm" class="mt-4">
-                <div class="mb-3">
-                    <label for="name" class="form-label">ชื่อ-นามสกุล</label>
-                    <input type="text" class="form-control" id="name" required placeholder="เช่น สมชาย ใจดี">
-                </div>
-                <div class="mb-3">
-                    <label for="phone" class="form-label">เบอร์โทรศัพท์</label>
-                    <input type="tel" class="form-control" id="phone" required placeholder="08xxxxxxxx">
-                </div>
-                <input type="hidden" id="lineUserId">
-                <input type="hidden" id="displayName">
-                <button type="submit" class="btn btn-primary w-100 btn-lg mt-3" id="submitBtn">ยืนยันการสมัคร</button>
-            </form>
+            
+    <form id="registerForm" class="mt-4">
+    <div class="mb-3">
+        <label for="nickname" class="form-label">ชื่อเล่น (Nickname)</label>
+        <input type="text" class="form-control" id="nickname" required placeholder="ใส่ชื่อเล่นของคุณ">
+    </div>
+
+    <div class="mb-3">
+        <label for="phoneNumber" class="form-label">เบอร์โทร (Phone Number)</label>
+        <input type="tel" class="form-control" id="phoneNumber" required placeholder="08xxxxxxxx">
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">อีเมล (Email) <span class="text-muted">(ไม่บังคับ)</span></label>
+        <input type="email" class="form-control" id="email" placeholder="example@email.com">
+    </div>
+
+    <div class="mb-3">
+    <label for="birthday" class="form-label">วันเกิด (Birthday) <span class="text-muted">(ไม่บังคับ)</span></label>
+    <input type="date" class="form-control" id="birthday" value="2000-01-01">
+    </div>
+
+    <div class="mb-3">
+        <label for="gender" class="form-label">เพศ (Gender) <span class="text-muted">(ไม่บังคับ)</span></label>
+        <select class="form-select" id="gender">
+            <option selected value="">เลือกเพศ...</option>
+            <option value="ชาย">ชาย (Male)</option>
+            <option value="หญิง">หญิง (Female)</option>
+            <option value="อื่นๆ">อื่นๆ (Other)</option>
+        </select>
+    </div>
+
+    <input type="hidden" id="lineUserId">
+    <input type="hidden" id="displayName">
+    
+    <button type="submit" class="btn btn-primary w-100 btn-lg mt-3" id="submitBtn">ยืนยันการสมัคร</button>
+</form>
         </div>
 
         <div id="memberView" style="display: none;" class="mt-3">
@@ -98,8 +122,11 @@
         const data = {
             userId: document.getElementById('lineUserId').value,
             displayName: document.getElementById('displayName').value,
-            name: document.getElementById('name').value,
-            phone: document.getElementById('phone').value,
+            nickname: document.getElementById('nickname').value,         // (แก้)
+            phoneNumber: document.getElementById('phoneNumber').value, // (แก้)
+            email: document.getElementById('email').value,               // (ใหม่)
+            gender: document.getElementById('gender').value              // (ใหม่)
+            birthday: document.getElementById('birthday').value // (เพิ่ม)
         };
 
         try {
