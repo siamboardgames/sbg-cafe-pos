@@ -37,12 +37,12 @@
         <h3 id="customerIdText" style="font-weight: bold;">CUST-XXXX</h3>
     </div>
 <script>
-    const WEB_APP_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL'; // ใส่ URL ของคุณ
+    const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbxW4jOIzpkfl-OCzm1t9TJMuiv3uNtMYlS9zUYNzPTAN69UmJSdQEQvhV13djBlGZ3X3w/exec'; // ใส่ URL ของคุณ
     const registerView = document.getElementById('registerView');
     const memberView = document.getElementById('memberView');
 
     async function main() {
-        await liff.init({ liffId: "YOUR_LIFF_ID" }); // ใส่ LIFF ID ของคุณ
+        await liff.init({ liffId: "2008335882-BDoWgxYr" }); // ใส่ LIFF ID ของคุณ
         if (!liff.isLoggedIn()) {
             liff.login();
             return;
